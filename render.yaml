@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: blastapi
+    runtime: docker
+    dockerfilePath: ./blastapi/Dockerfile
+    dockerContext: ./blastapi
+    plan: free
+
+  - type: web
+    name: threat-zone-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_BASE
+        sync: false

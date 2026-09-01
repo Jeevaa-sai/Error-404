@@ -19,6 +19,17 @@ const facilityIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
+function assetIcon(inHazard) {
+  const color = inHazard ? "#d64545" : "#5b8def";
+  return new L.DivIcon({
+    className: "",
+    html: `<div style="width:12px;height:12px;background:${color};border:2px solid #0f1720;
+           border-radius:50%;box-shadow:0 0 0 2px ${color}aa;"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+}
+
 function ClickPicker({ onPick }) {
   useMapEvents({
     click(e) {
@@ -33,7 +44,7 @@ function severityOrderDesc(bands) {
   return [...bands].sort((a, b) => order[b.severity] - order[a.severity]);
 }
 
-export default function HazardMap({ facility, zones, height = "100%", onPick }) {
+export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [] }) {
   const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
   const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
   const thermalBands = zones?.thermal_bands || [];
@@ -93,6 +104,16 @@ export default function HazardMap({ facility, zones, height = "100%", onPick }) 
             <Popup>{facility.name || "Facility"}{onPick ? " — click map to move" : ""}</Popup>
           </Marker>
         )}
+
+        {assets.map((asset) => (
+          <Marker key={asset.id} position={[asset.lat, asset.lon]} icon={assetIcon(asset.inHazard)}>
+            <Popup>
+              {asset.label}
+              <br />
+              {asset.inHazard ? "⚠ Inside a hazard zone" : "Outside all hazard zones"}
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       <WindIndicator
