@@ -46,6 +46,11 @@ function ConfigColumn({ label, initial }) {
         initial={initial}
         location={location}
         onLocationChange={(lat, lon) => setLocation({ lat, lon })}
+        onReset={() => {
+          setZones(null);
+          setError(null);
+          setFacility(initial);
+        }}
       />
       {error && (
         <div className="text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">
