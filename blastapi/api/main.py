@@ -24,7 +24,7 @@ try:
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from .geometry import generate_wind_stretched_polygon, describe_wind_effect
-    from .weather import get_weather_for_location, fetch_openweather
+    from .weather import get_weather_for_location, fetch_openweather, fetch_open_meteo
     from .exposure import calculate_environment_multiplier
 except ImportError:
     from schemas import (
@@ -36,7 +36,7 @@ except ImportError:
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from geometry import generate_wind_stretched_polygon, describe_wind_effect
-    from weather import get_weather_for_location, fetch_openweather
+    from weather import get_weather_for_location, fetch_openweather, fetch_open_meteo
     from exposure import calculate_environment_multiplier
 
 from physics.tnt_equivalent import calculate_tnt_equivalent_mass
@@ -82,27 +82,18 @@ def current_weather(
     fall back to a stand-in — the button should report a real failure rather
     than quietly filling the form with invented numbers.
     """
-    try:
-        result = fetch_openweather(lat, lon)
-    except (URLError, TimeoutError, OSError, ValueError, KeyError):
-        raise HTTPException(
-            status_code=502,
-            detail="Could not reach OpenWeather. Enter the wind manually.",
-        )
+    for provider in (fetch_openweather, fetch_open_meteo):
+        try:
+            result = provider(lat, lon)
+        except (URLError, TimeoutError, OSError, ValueError, KeyError):
+            continue
+        if result:
+            return WeatherInfo(**result)
 
-    if result is None:
-        if not os.getenv("OPENWEATHER_API_KEY"):
-            raise HTTPException(
-                status_code=503,
-                detail="Live weather is not configured on the server "
-                       "(OPENWEATHER_API_KEY is not set).",
-            )
-        raise HTTPException(
-            status_code=502,
-            detail="OpenWeather returned no wind data for this location.",
-        )
-
-    return WeatherInfo(**result)
+    raise HTTPException(
+        status_code=502,
+        detail="No weather provider could be reached. Enter the wind manually.",
+    )
 
 
 @app.post("/calculate-zones", response_model=ZoneResponse)
