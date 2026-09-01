@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import WindIndicator from "./WindIndicator";
 import SeverityLegend from "./SeverityLegend";
@@ -34,6 +35,21 @@ function ClickPicker({ onPick }) {
   return null;
 }
 
+// Pans the map whenever the facility's coordinates change from outside a
+// map click (geolocation, typed lat/lon, a loaded share link) — a plain
+// click already leaves that point in view, so this only recenters when the
+// numbers themselves move.
+function Recenter({ lat, lon }) {
+  const map = useMap();
+  useEffect(() => {
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      map.flyTo([lat, lon], map.getZoom());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lon]);
+  return null;
+}
+
 export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [], loading = false }) {
   const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
   const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
@@ -54,6 +70,7 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
         />
 
         {onPick && <ClickPicker onPick={onPick} />}
+        {hasLocation && <Recenter lat={facility.lat} lon={facility.lon} />}
 
         {drawOrder(thermalBands).map((band) => (
           <Polygon

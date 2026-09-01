@@ -70,6 +70,13 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
       setGeoStatus("Geolocation not supported by this browser");
       return;
     }
+    if (!window.isSecureContext) {
+      setGeoStatus(
+        `Browsers block location on plain HTTP over the network. Open this page via ` +
+        `http://localhost:${window.location.port || "5173"} on this computer, or click the map / type coordinates instead.`
+      );
+      return;
+    }
     setGeoStatus("loading");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -277,6 +284,8 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
         value={form.environment || DEFAULT_ENVIRONMENT}
         onChange={(env) => update("environment", env)}
         disabled={isLoading}
+        lat={Number(form.lat)}
+        lon={Number(form.lon)}
       />
 
       <div className="flex gap-2 mt-2">

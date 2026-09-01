@@ -1,6 +1,5 @@
 import { polygonBounds, pointInPolygon } from "../utils/geo";
-
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+import { runOverpassQuery } from "./overpass";
 
 const CRITICAL_TAGS = {
   hospital: "amenity=hospital",
@@ -14,7 +13,7 @@ const CRITICAL_TAGS = {
 // Queries OSM (via Overpass) for buildings and critical-infrastructure
 // amenities inside the bounding box of the given ring, then filters to
 // only those actually inside the polygon (not just the box).
-export async function fetchExposure(ring, { signal } = {}) {
+export async function fetchExposure(ring) {
   const { minLat, maxLat, minLon, maxLon } = polygonBounds(ring);
   const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
 
@@ -28,15 +27,7 @@ export async function fetchExposure(ring, { signal } = {}) {
     out center;
   `.trim();
 
-  const response = await fetch(OVERPASS_URL, {
-    method: "POST",
-    body: query,
-    signal,
-  });
-  if (!response.ok) {
-    throw new Error(`Overpass API error: ${response.status}`);
-  }
-  const data = await response.json();
+  const data = await runOverpassQuery(query);
 
   let buildingCount = 0;
   const criticalSites = [];

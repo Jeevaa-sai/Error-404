@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatSigned } from "../utils/format";
+import { fetchEnvironmentEstimate } from "../api/environmentApi";
 import {
   DEFAULT_ENVIRONMENT,
   ENVIRONMENT_FIELDS,
@@ -11,8 +12,9 @@ function fieldPercent(field, value) {
   return field.sign * v * field.coefficient * 100;
 }
 
-export default function EnvironmentControls({ value, onChange, disabled }) {
+export default function EnvironmentControls({ value, onChange, disabled, lat, lon }) {
   const [open, setOpen] = useState(false);
+  const [autoStatus, setAutoStatus] = useState(null); // null | "loading" | error string
   const environment = value || DEFAULT_ENVIRONMENT;
   const multiplier = previewMultiplier(environment);
   const percent = (multiplier - 1) * 100;
@@ -20,6 +22,30 @@ export default function EnvironmentControls({ value, onChange, disabled }) {
 
   function set(key, raw) {
     onChange({ ...environment, [key]: raw });
+  }
+
+  async function autoFill() {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      setAutoStatus("Set a location first");
+      return;
+    }
+    setOpen(true);
+    setAutoStatus("loading");
+    try {
+      const estimate = await fetchEnvironmentEstimate(lat, lon);
+      onChange({
+        ...environment,
+        tree_density: estimate.tree_density,
+        vehicle_density: estimate.vehicle_density,
+        nearby_buildings: estimate.nearby_buildings,
+        occupancy_risk: estimate.occupancy_risk,
+        // Elevation lookup is best-effort — keep whatever was there if it failed.
+        terrain_roughness: estimate.terrain_roughness ?? environment.terrain_roughness,
+      });
+      setAutoStatus(null);
+    } catch (err) {
+      setAutoStatus(err.message || "Auto-fill failed");
+    }
   }
 
   return (
@@ -47,6 +73,20 @@ export default function EnvironmentControls({ value, onChange, disabled }) {
 
       {open && (
         <div className="px-3 pb-3 space-y-3 border-t border-ink-700 pt-3">
+          <div className="flex items-center justify-between -mb-1 pt-2">
+            <span className="text-[10px] text-ink-700">From OpenStreetMap + elevation data, ~300 m around the site</span>
+            <button
+              type="button"
+              onClick={autoFill}
+              disabled={disabled || autoStatus === "loading"}
+              className="text-xs text-hazard-500 hover:text-hazard-400 disabled:opacity-50 font-mono shrink-0"
+            >
+              {autoStatus === "loading" ? "Estimating…" : "📡 Auto-fill from map"}
+            </button>
+          </div>
+          {autoStatus && autoStatus !== "loading" && (
+            <p className="text-xs text-severity-high">{autoStatus}</p>
+          )}
           {ENVIRONMENT_FIELDS.map((field) => {
             const raw = environment[field.key] ?? 0;
             const contribution = fieldPercent(field, raw);
