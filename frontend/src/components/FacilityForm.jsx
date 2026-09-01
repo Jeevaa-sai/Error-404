@@ -114,7 +114,8 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
       tank_volume_m3: Number(form.tank_volume_m3),
       tank_diameter_m: Number(form.tank_diameter_m),
       wind_speed_mps: Number(form.wind_speed_mps),
-      wind_direction_deg: Number(form.wind_direction_deg),
+      // The API accepts [0, 360); 360 and any over-rotation wrap to north.
+      wind_direction_deg: ((Number(form.wind_direction_deg) % 360) + 360) % 360,
       use_live_weather: Boolean(form.use_live_weather),
       environment: {
         tree_density: Number(environment.tree_density) || 0,
@@ -244,7 +245,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
             className={inputClass}
             type="number"
             min="0"
-            step="0.5"
+            step="any"
             value={form.wind_speed_mps}
             onChange={(e) => update("wind_speed_mps", e.target.value)}
           />
@@ -255,6 +256,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
             type="number"
             min="0"
             max="360"
+            step="any"
             value={form.wind_direction_deg}
             onChange={(e) => update("wind_direction_deg", e.target.value)}
           />
