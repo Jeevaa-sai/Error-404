@@ -5,6 +5,11 @@ services:
     dockerfilePath: ./blastapi/Dockerfile
     dockerContext: ./blastapi
     plan: free
+    envVars:
+      # Set the real value in the Render dashboard, not here. Without it the
+      # API falls back to estimated wind and reports confidence "fallback".
+      - key: OPENWEATHER_API_KEY
+        sync: false
 
   - type: web
     name: threat-zone-frontend

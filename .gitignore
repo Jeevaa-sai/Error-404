@@ -1,2 +1,10 @@
 __pycache__/
 *.pyc
+
+# Secrets — never commit these. Real values go in a local .env, which stays
+# untracked; .env.example carries the placeholder names only.
+.env
+.env.*
+!.env.example
+*.key
+secrets.json
