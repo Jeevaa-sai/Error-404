@@ -1,6 +1,26 @@
 @echo off
 setlocal
 
+REM Bail out early with a clear message rather than opening two windows that
+REM immediately die — the usual symptom of a fresh clone with no dependencies.
+where python >nul 2>&1
+if errorlevel 1 (
+  echo [X] Python not found on PATH. Run setup.bat first.
+  pause
+  exit /b 1
+)
+python -c "import fastapi, uvicorn" >nul 2>&1
+if errorlevel 1 (
+  echo [X] Backend dependencies missing. Run setup.bat first.
+  pause
+  exit /b 1
+)
+if not exist "%~dp0frontend\node_modules" (
+  echo [X] Frontend dependencies missing. Run setup.bat first.
+  pause
+  exit /b 1
+)
+
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do (
   if not defined LANIP set LANIP=%%a
 )
