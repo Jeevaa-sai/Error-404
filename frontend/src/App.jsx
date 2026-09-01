@@ -10,6 +10,7 @@ const DEFAULT_FACILITY = {
 };
 
 function SingleView() {
+  const [location, setLocation] = useState({ lat: DEFAULT_FACILITY.lat, lon: DEFAULT_FACILITY.lon });
   const [facility, setFacility] = useState(DEFAULT_FACILITY);
   const [zones, setZones] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,7 @@ function SingleView() {
       const result = await calculateZones(input);
       setZones(result);
       setFacility(input);
+      setLocation({ lat: input.lat, lon: input.lon });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -29,10 +31,18 @@ function SingleView() {
     }
   }
 
+  const mapFacility = { ...facility, lat: location.lat, lon: location.lon };
+
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
       <aside className="lg:w-72 shrink-0">
-        <FacilityForm onSubmit={handleSubmit} isLoading={loading} initial={DEFAULT_FACILITY} />
+        <FacilityForm
+          onSubmit={handleSubmit}
+          isLoading={loading}
+          initial={DEFAULT_FACILITY}
+          location={location}
+          onLocationChange={(lat, lon) => setLocation({ lat, lon })}
+        />
         {error && (
           <div className="mt-3 text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">
             {error}
@@ -40,13 +50,17 @@ function SingleView() {
         )}
         {!zones && !loading && !error && (
           <div className="mt-3 text-xs text-ink-400 leading-relaxed">
-            Enter facility parameters and compute to see graded thermal and
-            overpressure hazard zones on the map.
+            Enter facility parameters, click the map or use your location, then
+            compute to see graded thermal and overpressure hazard zones.
           </div>
         )}
       </aside>
       <div className="flex-1 min-w-0 min-h-[420px]">
-        <HazardMap facility={facility} zones={zones} />
+        <HazardMap
+          facility={mapFacility}
+          zones={zones}
+          onPick={(lat, lon) => setLocation({ lat, lon })}
+        />
       </div>
     </div>
   );
