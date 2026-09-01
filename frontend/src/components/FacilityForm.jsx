@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchCurrentWind } from "../api/weatherApi";
 
 const FUEL_OPTIONS = [
   { value: "propane", label: "Propane" },
@@ -41,6 +42,7 @@ const inputClass =
 export default function FacilityForm({ label, onSubmit, isLoading, initial, location, onLocationChange, onReset }) {
   const [form, setForm] = useState(initial || DEFAULT_INPUT);
   const [geoStatus, setGeoStatus] = useState(null); // null | "loading" | error string
+  const [windStatus, setWindStatus] = useState(null); // null | "loading" | error string
 
   useEffect(() => {
     if (location) {
@@ -74,6 +76,27 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
       (err) => setGeoStatus(err.message || "Unable to get location"),
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }
+
+  async function autoFillWind() {
+    const lat = Number(form.lat);
+    const lon = Number(form.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      setWindStatus("Set a location first");
+      return;
+    }
+    setWindStatus("loading");
+    try {
+      const { windSpeedMps, windDirectionDeg } = await fetchCurrentWind(lat, lon);
+      setForm((f) => ({
+        ...f,
+        wind_speed_mps: Math.round(windSpeedMps * 10) / 10,
+        wind_direction_deg: Math.round(windDirectionDeg),
+      }));
+      setWindStatus(null);
+    } catch (err) {
+      setWindStatus(err.message || "Unable to fetch live wind");
+    }
   }
 
   function handleSubmit(e) {
@@ -184,6 +207,20 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
         </select>
       </Field>
 
+      <div className="flex items-center justify-between -mb-1">
+        <span className="text-xs text-ink-400">Wind</span>
+        <button
+          type="button"
+          onClick={autoFillWind}
+          disabled={windStatus === "loading"}
+          className="text-xs text-hazard-500 hover:text-hazard-400 disabled:opacity-50 font-mono"
+        >
+          {windStatus === "loading" ? "Fetching…" : "🌬 Use live wind"}
+        </button>
+      </div>
+      {windStatus && windStatus !== "loading" && (
+        <p className="text-xs text-severity-high -mt-2">{windStatus}</p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Wind speed" unit="m/s">
           <input

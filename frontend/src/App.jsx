@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FacilityForm from "./components/FacilityForm";
 import HazardMap from "./components/HazardMap";
 import ComparisonPanel from "./components/ComparisonPanel";
+import ExposurePanel from "./components/ExposurePanel";
+import BriefingPanel from "./components/BriefingPanel";
+import AssetAlerts from "./components/AssetAlerts";
 import { calculateZones } from "./api/zonesApi";
+import { buildShareUrl, facilityFromLocation } from "./utils/share";
+import { pointInPolygon } from "./utils/geo";
 
 const DEFAULT_FACILITY = {
   lat: 13.0067, lon: 80.2206, tank_volume_m3: 50, tank_diameter_m: 12,
@@ -14,12 +19,33 @@ const EMPTY_FACILITY = {
   fuel_type: "propane", wind_speed_mps: 0, wind_direction_deg: 0,
 };
 
+let assetIdCounter = 0;
+
+function isAssetInHazard(asset, zones) {
+  if (!zones) return false;
+  const allBands = [...(zones.thermal_bands || []), ...(zones.overpressure_bands || [])];
+  return allBands.some((band) => pointInPolygon([asset.lat, asset.lon], band.polygon));
+}
+
 function SingleView() {
-  const [location, setLocation] = useState({ lat: DEFAULT_FACILITY.lat, lon: DEFAULT_FACILITY.lon });
-  const [facility, setFacility] = useState(DEFAULT_FACILITY);
+  const sharedFacility = facilityFromLocation();
+  const initialFacility = sharedFacility || DEFAULT_FACILITY;
+
+  const [location, setLocation] = useState({ lat: initialFacility.lat, lon: initialFacility.lon });
+  const [facility, setFacility] = useState(initialFacility);
   const [zones, setZones] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [assets, setAssets] = useState([]);
+  const [pickMode, setPickMode] = useState("location"); // "location" | "asset"
+
+  useEffect(() => {
+    if (sharedFacility) {
+      handleSubmit(sharedFacility);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(input) {
     setLoading(true);
@@ -36,11 +62,34 @@ function SingleView() {
     }
   }
 
+  function handleMapPick(lat, lon) {
+    if (pickMode === "asset") {
+      const label = window.prompt("Label for this asset (e.g. \"City Hospital\")");
+      if (label) {
+        setAssets((prev) => [...prev, { id: assetIdCounter++, lat, lon, label }]);
+      }
+      setPickMode("location");
+    } else {
+      setLocation({ lat, lon });
+    }
+  }
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(facility));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API unavailable — no-op.
+    }
+  }
+
   const mapFacility = { ...facility, lat: location.lat, lon: location.lon };
+  const assetsWithStatus = assets.map((a) => ({ ...a, inHazard: isAssetInHazard(a, zones) }));
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
-      <aside className="lg:w-72 shrink-0">
+      <aside className="lg:w-72 shrink-0 overflow-y-auto">
         <FacilityForm
           onSubmit={handleSubmit}
           isLoading={loading}
@@ -65,12 +114,35 @@ function SingleView() {
             compute to see graded thermal and overpressure hazard zones.
           </div>
         )}
+
+        {zones && (
+          <button
+            type="button"
+            onClick={copyShareLink}
+            className="mt-3 w-full text-xs text-ink-400 hover:text-ink-100 border border-ink-700
+                       hover:border-ink-400 rounded-sm px-3 py-2 font-mono transition-colors"
+          >
+            {copied ? "Link copied" : "🔗 Copy share link"}
+          </button>
+        )}
+
+        <AssetAlerts
+          assets={assetsWithStatus}
+          pickMode={pickMode}
+          onTogglePickMode={() => setPickMode((m) => (m === "asset" ? "location" : "asset"))}
+          onRemove={(id) => setAssets((prev) => prev.filter((a) => a.id !== id))}
+          onClear={() => setAssets([])}
+        />
+
+        <ExposurePanel zones={zones} />
+        <BriefingPanel facility={facility} zones={zones} />
       </aside>
       <div className="flex-1 min-w-0 min-h-[420px]">
         <HazardMap
           facility={mapFacility}
           zones={zones}
-          onPick={(lat, lon) => setLocation({ lat, lon })}
+          onPick={handleMapPick}
+          assets={assetsWithStatus}
         />
       </div>
     </div>
