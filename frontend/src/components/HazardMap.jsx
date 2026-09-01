@@ -196,7 +196,7 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
       <button
         type="button"
         onClick={() => setBaseLayer((l) => (l === "street" ? "satellite" : "street"))}
-        className="absolute top-3 left-3 z-[1000] bg-ink-900/90 border border-ink-700 hover:border-ink-400
+        className="absolute bottom-3 right-3 z-[1000] bg-ink-900/90 border border-ink-700 hover:border-ink-400
                    rounded-sm px-3 py-1.5 text-xs text-ink-100 font-mono backdrop-blur-sm transition-colors"
       >
         {BASE_LAYERS[baseLayer === "street" ? "satellite" : "street"].label}
