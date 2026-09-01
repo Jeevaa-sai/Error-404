@@ -4,7 +4,7 @@ import { LoadingMessage, EmptyMessage, SkeletonLines } from "./StatusMessage";
 
 const SOURCE_LABELS = {
   openweather: "OpenWeather (live observation)",
-  "open-meteo": "Open-Meteo (live forecast)",
+  "open-meteo": "Open-Meteo (live forecast, no key needed)",
   manual: "Manual entry (operator supplied)",
   fallback: "Estimated (no live feed available)",
 };
@@ -114,8 +114,9 @@ export default function WeatherPanel({ weather, loading }) {
 
           {weather.confidence === "fallback" && (
             <p className="text-severity-medium leading-relaxed pt-1">
-              No live weather feed reached — these are estimated conditions. Enter the wind
-              manually or set OPENWEATHER_API_KEY on the server for observed data.
+              No live weather provider could be reached — these are estimated conditions
+              derived from the coordinates, not a measurement. Check the server's network
+              access, or enter the wind manually.
             </p>
           )}
         </div>
