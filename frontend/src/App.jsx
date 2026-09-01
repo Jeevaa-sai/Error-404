@@ -97,47 +97,60 @@ function SingleView() {
   const assetsWithStatus = assets.map((a) => ({ ...a, inHazard: isAssetInHazard(a, zones) }));
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full">
-      <aside className="lg:w-72 shrink-0 overflow-y-auto">
-        <FacilityForm
-          onSubmit={handleSubmit}
-          isLoading={loading}
-          initial={DEFAULT_FACILITY}
-          location={location}
-          onLocationChange={(lat, lon) => setLocation({ lat, lon })}
-          onReset={() => {
-            setZones(null);
-            setError(null);
-            setFacility(EMPTY_FACILITY);
-            setLocation({ lat: null, lon: null });
-            setLastInput(null);
-          }}
-        />
-        <div className="mt-3">
-          <ErrorMessage
-            message={error}
-            onRetry={lastInput ? () => handleSubmit(lastInput) : undefined}
-            retryLabel="Retry"
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
+        <aside className="lg:w-72 shrink-0 overflow-y-auto">
+          <FacilityForm
+            onSubmit={handleSubmit}
+            isLoading={loading}
+            initial={DEFAULT_FACILITY}
+            location={location}
+            onLocationChange={(lat, lon) => setLocation({ lat, lon })}
+            onReset={() => {
+              setZones(null);
+              setError(null);
+              setFacility(EMPTY_FACILITY);
+              setLocation({ lat: null, lon: null });
+              setLastInput(null);
+            }}
+          />
+          <div className="mt-3">
+            <ErrorMessage
+              message={error}
+              onRetry={lastInput ? () => handleSubmit(lastInput) : undefined}
+              retryLabel="Retry"
+            />
+          </div>
+          {!zones && !loading && !error && (
+            <div className="mt-3 text-xs text-ink-400 leading-relaxed">
+              Enter facility parameters, click the map or use your location, then
+              compute to see graded thermal and overpressure hazard zones.
+            </div>
+          )}
+
+          {zones && (
+            <button
+              type="button"
+              onClick={copyShareLink}
+              className="mt-3 w-full text-xs text-ink-400 hover:text-ink-100 border border-ink-700
+                         hover:border-ink-400 rounded-sm px-3 py-2 font-mono transition-colors"
+            >
+              {copied ? "Link copied" : "🔗 Copy share link"}
+            </button>
+          )}
+        </aside>
+        <div className="flex-1 min-w-0 h-[420px] lg:h-[600px]">
+          <HazardMap
+            facility={mapFacility}
+            zones={zones}
+            onPick={handleMapPick}
+            assets={assetsWithStatus}
+            loading={loading}
           />
         </div>
-        {!zones && !loading && !error && (
-          <div className="mt-3 text-xs text-ink-400 leading-relaxed">
-            Enter facility parameters, click the map or use your location, then
-            compute to see graded thermal and overpressure hazard zones.
-          </div>
-        )}
+      </div>
 
-        {zones && (
-          <button
-            type="button"
-            onClick={copyShareLink}
-            className="mt-3 w-full text-xs text-ink-400 hover:text-ink-100 border border-ink-700
-                       hover:border-ink-400 rounded-sm px-3 py-2 font-mono transition-colors"
-          >
-            {copied ? "Link copied" : "🔗 Copy share link"}
-          </button>
-        )}
-
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
         <AssetAlerts
           assets={assetsWithStatus}
           pickMode={pickMode}
@@ -145,20 +158,10 @@ function SingleView() {
           onRemove={(id) => setAssets((prev) => prev.filter((a) => a.id !== id))}
           onClear={() => setAssets([])}
         />
-
         <WeatherPanel weather={zones?.weather} loading={loading} />
         <ZoneExplanation zones={zones} loading={loading} />
         <ExposurePanel zones={zones} />
         <BriefingPanel facility={facility} zones={zones} />
-      </aside>
-      <div className="flex-1 min-w-0 h-[420px] lg:h-[600px]">
-        <HazardMap
-          facility={mapFacility}
-          zones={zones}
-          onPick={handleMapPick}
-          assets={assetsWithStatus}
-          loading={loading}
-        />
       </div>
     </div>
   );

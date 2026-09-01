@@ -2,7 +2,7 @@ export default function AssetAlerts({ assets, pickMode, onTogglePickMode, onRemo
   const inHazardCount = assets.filter((a) => a.inHazard).length;
 
   return (
-    <div className="mt-3 border border-ink-700 rounded-sm p-3">
+    <div className="border border-ink-700 rounded-sm p-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase">
           Protected assets

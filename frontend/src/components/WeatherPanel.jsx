@@ -52,7 +52,7 @@ export default function WeatherPanel({ weather, loading }) {
     weather?.timestamp && now - new Date(weather.timestamp).getTime() > 60 * 60 * 1000;
 
   return (
-    <section className="mt-3 border border-ink-700 rounded-sm p-3">
+    <section className="border border-ink-700 rounded-sm p-3">
       <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase mb-2">
         Weather
       </h3>

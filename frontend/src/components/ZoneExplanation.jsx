@@ -45,7 +45,7 @@ function HazardBlock({ title, bands, expanded }) {
 export default function ZoneExplanation({ zones, loading }) {
   if (loading && !zones) {
     return (
-      <section className="mt-3 border border-ink-700 rounded-sm p-3">
+      <section className="border border-ink-700 rounded-sm p-3">
         <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase mb-2">
           Why these zones
         </h3>
@@ -56,7 +56,7 @@ export default function ZoneExplanation({ zones, loading }) {
 
   if (!zones) {
     return (
-      <section className="mt-3 border border-ink-700 rounded-sm p-3">
+      <section className="border border-ink-700 rounded-sm p-3">
         <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase mb-2">
           Why these zones
         </h3>
@@ -80,7 +80,7 @@ export default function ZoneExplanation({ zones, loading }) {
     .sort((a, b) => Math.abs(b.percent_change) - Math.abs(a.percent_change));
 
   return (
-    <section className="mt-3 border border-ink-700 rounded-sm p-3 text-xs space-y-3">
+    <section className="border border-ink-700 rounded-sm p-3 text-xs space-y-3">
       <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase">
         Why these zones
       </h3>
