@@ -5,6 +5,10 @@ import ComparisonPanel from "./components/ComparisonPanel";
 import ExposurePanel from "./components/ExposurePanel";
 import BriefingPanel from "./components/BriefingPanel";
 import AssetAlerts from "./components/AssetAlerts";
+import WeatherPanel from "./components/WeatherPanel";
+import ZoneExplanation from "./components/ZoneExplanation";
+import { ErrorMessage } from "./components/StatusMessage";
+import { DEFAULT_ENVIRONMENT } from "./utils/environment";
 import { calculateZones } from "./api/zonesApi";
 import { buildShareUrl, facilityFromLocation } from "./utils/share";
 import { pointInPolygon } from "./utils/geo";
@@ -12,11 +16,13 @@ import { pointInPolygon } from "./utils/geo";
 const DEFAULT_FACILITY = {
   lat: 13.0067, lon: 80.2206, tank_volume_m3: 50, tank_diameter_m: 12,
   fuel_type: "propane", wind_speed_mps: 5, wind_direction_deg: 45,
+  use_live_weather: false, environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 const EMPTY_FACILITY = {
   lat: null, lon: null, tank_volume_m3: 0, tank_diameter_m: 0,
   fuel_type: "propane", wind_speed_mps: 0, wind_direction_deg: 0,
+  use_live_weather: false, environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 let assetIdCounter = 0;
@@ -39,6 +45,7 @@ function SingleView() {
   const [copied, setCopied] = useState(false);
   const [assets, setAssets] = useState([]);
   const [pickMode, setPickMode] = useState("location"); // "location" | "asset"
+  const [lastInput, setLastInput] = useState(null);
 
   useEffect(() => {
     if (sharedFacility) {
@@ -50,13 +57,14 @@ function SingleView() {
   async function handleSubmit(input) {
     setLoading(true);
     setError(null);
+    setLastInput(input);
     try {
       const result = await calculateZones(input);
       setZones(result);
       setFacility(input);
       setLocation({ lat: input.lat, lon: input.lon });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not reach the hazard-zone service.");
     } finally {
       setLoading(false);
     }
@@ -101,13 +109,16 @@ function SingleView() {
             setError(null);
             setFacility(EMPTY_FACILITY);
             setLocation({ lat: null, lon: null });
+            setLastInput(null);
           }}
         />
-        {error && (
-          <div className="mt-3 text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">
-            {error}
-          </div>
-        )}
+        <div className="mt-3">
+          <ErrorMessage
+            message={error}
+            onRetry={lastInput ? () => handleSubmit(lastInput) : undefined}
+            retryLabel="Retry"
+          />
+        </div>
         {!zones && !loading && !error && (
           <div className="mt-3 text-xs text-ink-400 leading-relaxed">
             Enter facility parameters, click the map or use your location, then
@@ -134,6 +145,8 @@ function SingleView() {
           onClear={() => setAssets([])}
         />
 
+        <WeatherPanel weather={zones?.weather} loading={loading} />
+        <ZoneExplanation zones={zones} loading={loading} />
         <ExposurePanel zones={zones} />
         <BriefingPanel facility={facility} zones={zones} />
       </aside>
@@ -143,6 +156,7 @@ function SingleView() {
           zones={zones}
           onPick={handleMapPick}
           assets={assetsWithStatus}
+          loading={loading}
         />
       </div>
     </div>

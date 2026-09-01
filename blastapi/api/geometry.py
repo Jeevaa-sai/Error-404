@@ -70,3 +70,38 @@ def generate_wind_stretched_polygon(
     ring.append(ring[0])
     return ring
 
+
+def describe_wind_effect(wind_speed_mps, wind_direction_deg, stretch_coefficient=0.05):
+    """Report how the wind reshapes a zone, using the same maths as
+    generate_wind_stretched_polygon, so the UI can explain the shape.
+
+    Extents are returned as multiples of the isotropic radius:
+      - downwind_stretch: how far the zone reaches with the wind
+      - crosswind_stretch: how far it reaches side-on
+    The upwind reach always stays at 1.0 (see the note above).
+    """
+    semi_major_ratio = 1 + stretch_coefficient * wind_speed_mps
+    crosswind_ratio = max(0.15, 1 - 0.3 * stretch_coefficient * wind_speed_mps)
+    downwind_ratio = 2 * semi_major_ratio - 1
+    downwind_bearing_deg = (wind_direction_deg + 180) % 360
+
+    if wind_speed_mps <= 0:
+        explanation = (
+            "With no wind the zones stay circular — every direction is equally exposed."
+        )
+    else:
+        explanation = (
+            f"Wind from {wind_direction_deg:.0f}° at {wind_speed_mps:.1f} m/s pushes the "
+            f"plume toward {downwind_bearing_deg:.0f}°, stretching the downwind reach to "
+            f"{downwind_ratio:.2f}x the still-air radius and narrowing the sides to "
+            f"{crosswind_ratio:.2f}x. The upwind edge stays at the still-air radius."
+        )
+
+    return {
+        "wind_speed_mps": round(float(wind_speed_mps), 2),
+        "wind_direction_deg": round(float(wind_direction_deg), 1),
+        "downwind_bearing_deg": round(downwind_bearing_deg, 1),
+        "downwind_stretch": round(downwind_ratio, 3),
+        "crosswind_stretch": round(crosswind_ratio, 3),
+        "explanation": explanation,
+    }

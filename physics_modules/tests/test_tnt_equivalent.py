@@ -24,7 +24,7 @@ def test_tnt_equivalent_bigger_volume_bigger_mass():
 
 def test_unknown_fuel_raises():
     try:
-        calculate_tnt_equivalent_mass(50.0, "kerosene")
+        calculate_tnt_equivalent_mass(50.0, "unknown_fuel")
         assert False, "should have raised ValueError"
     except ValueError:
         pass
