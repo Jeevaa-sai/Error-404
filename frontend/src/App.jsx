@@ -42,6 +42,11 @@ function SingleView() {
           initial={DEFAULT_FACILITY}
           location={location}
           onLocationChange={(lat, lon) => setLocation({ lat, lon })}
+          onReset={() => {
+            setZones(null);
+            setError(null);
+            setFacility(DEFAULT_FACILITY);
+          }}
         />
         {error && (
           <div className="mt-3 text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">

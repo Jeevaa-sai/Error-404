@@ -1,7 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import List, Tuple, Literal
 
-FuelType = Literal["propane", "lng", "gasoline", "diesel"]
+FuelType = Literal[
+    "propane", "lng", "gasoline", "diesel",
+    "kerosene", "crude_oil", "ethanol", "butane",
+]
 HazardType = Literal["thermal", "overpressure"]
 Severity = Literal["high", "medium", "low"]
 
