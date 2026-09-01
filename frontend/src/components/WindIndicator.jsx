@@ -15,8 +15,8 @@ export default function WindIndicator({ windSpeedMps, windDirectionDeg }) {
         style={{ transform: `rotate(${downwindDeg}deg)` }}
         className="transition-transform shrink-0"
       >
-        <line x1="14" y1="4" x2="14" y2="22" stroke="#5b8def" strokeWidth="2" />
-        <polygon points="14,2 9,10 19,10" fill="#5b8def" />
+        <line x1="14" y1="4" x2="14" y2="22" stroke="#8a3a1f" strokeWidth="2" />
+        <polygon points="14,2 9,10 19,10" fill="#8a3a1f" />
       </svg>
       <div className="text-xs leading-tight">
         <div className="text-ink-100 font-mono">{windSpeedMps} m/s</div>

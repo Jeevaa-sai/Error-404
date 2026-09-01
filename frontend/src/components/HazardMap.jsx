@@ -9,12 +9,12 @@ const FALLBACK_CENTER = [13.0067, 80.2206];
 
 const BASE_LAYERS = {
   street: {
-    label: "🛰️ Satellite",
+    label: "🗺️ Map",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; OpenStreetMap contributors',
   },
   satellite: {
-    label: "🗺️ Map",
+    label: "🛰️ Satellite",
     // Esri World Imagery — free, keyless, standard XYZ tiles.
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
@@ -23,17 +23,17 @@ const BASE_LAYERS = {
 
 const facilityIcon = new L.DivIcon({
   className: "",
-  html: `<div style="width:14px;height:14px;background:#ff6a13;border:2px solid #0f1720;
-         border-radius:2px;transform:rotate(45deg);box-shadow:0 0 0 2px #ff6a13aa;"></div>`,
+  html: `<div style="width:14px;height:14px;background:#8a3a1f;border:2px solid #2a2117;
+         border-radius:2px;transform:rotate(45deg);box-shadow:0 0 0 2px #8a3a1faa;"></div>`,
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
 
 function assetIcon(inHazard) {
-  const color = inHazard ? "#d64545" : "#5b8def";
+  const color = inHazard ? "#b0362f" : "#3d5f8f";
   return new L.DivIcon({
     className: "",
-    html: `<div style="width:12px;height:12px;background:${color};border:2px solid #0f1720;
+    html: `<div style="width:12px;height:12px;background:${color};border:2px solid #2a2117;
            border-radius:50%;box-shadow:0 0 0 2px ${color}aa;"></div>`,
     iconSize: [12, 12],
     iconAnchor: [6, 6],

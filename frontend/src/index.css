@@ -2,23 +2,25 @@
 
 @theme {
   --font-display: "Oswald", sans-serif;
-  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-sans: "Source Sans 3", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  --color-ink-950: #0f1720;
-  --color-ink-900: #16212c;
-  --color-ink-800: #1d2b38;
-  --color-ink-700: #2a3b4a;
-  --color-ink-400: #7d8c99;
-  --color-ink-100: #dce4ea;
+  /* "Field dossier" palette — cream page/paper, rust-brown accent, ink text. */
+  --color-ink-950: #ece3d0;
+  --color-ink-900: #f6f1e4;
+  --color-ink-800: #e3d8bf;
+  --color-ink-700: #cbbd9c;
+  --color-ink-400: #7a6a54;
+  --color-ink-100: #2a2117;
 
-  --color-hazard-500: #ff6a13;
-  --color-hazard-600: #e05a0a;
+  --color-hazard-500: #8a3a1f;
+  --color-hazard-600: #622910;
+  --color-hazard-400: #a8501f;
 
-  --color-severity-high: #d64545;
-  --color-severity-medium: #e8a33d;
-  --color-severity-low: #f0d264;
-  --color-overpressure: #5b8def;
+  --color-severity-high: #b0362f;
+  --color-severity-medium: #b8791f;
+  --color-severity-low: #9a842f;
+  --color-overpressure: #3d5f8f;
 }
 
 body {
@@ -36,7 +38,7 @@ body {
   background-image: repeating-linear-gradient(
     135deg,
     var(--color-hazard-500) 0 10px,
-    #14181c 10px 20px
+    #ece3d0 10px 20px
   );
 }
 

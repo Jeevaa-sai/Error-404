@@ -177,7 +177,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-ink-700 px-5 py-3 flex items-center justify-between">
+      <header className="border-b-2 border-hazard-500 px-5 py-3 flex items-center justify-between">
         <div>
           <h1 className="font-display text-lg tracking-wide uppercase text-ink-100">
             Threat-Zone Estimator

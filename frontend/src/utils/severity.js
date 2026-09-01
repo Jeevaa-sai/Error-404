@@ -24,7 +24,7 @@ export function drawOrder(bands = []) {
 // Thermal reads as a filled zone, overpressure as a dashed outline, so the
 // two hazard types stay distinguishable while both carry severity colour.
 export function bandStyle(band, hazardType) {
-  const color = SEVERITY_COLORS[band.severity] || "#ff6a13";
+  const color = SEVERITY_COLORS[band.severity] || "#8a3a1f";
   if (hazardType === "thermal") {
     return { color, weight: 2, fillColor: color, fillOpacity: 0.22 };
   }
