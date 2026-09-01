@@ -5,6 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 try:
+    from .config import load_env_file
+except ImportError:
+    from config import load_env_file
+
+# Reads blastapi/.env before anything asks for a key. Real environment
+# variables take precedence, so deployments are unaffected.
+_loaded_env = load_env_file()
+
+try:
     from .schemas import (
         FacilityInput, ZoneResponse, SeverityBand, WeatherInfo,
         RiskAdjustment, WindEffect,
@@ -46,7 +55,12 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # Reports whether a live weather key is configured, without ever
+    # revealing the key itself — handy for checking a deployment.
+    return {
+        "status": "ok",
+        "live_weather_configured": bool(os.getenv("OPENWEATHER_API_KEY")),
+    }
 
 
 @app.get("/fuels")
