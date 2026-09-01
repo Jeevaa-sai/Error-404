@@ -39,3 +39,12 @@ body {
     #14181c 10px 20px
   );
 }
+
+/* Soft-blurred rendering so the three thermal severity bands read as a
+   continuous heat glow instead of three flat rings — the underlying data is
+   still just three thresholds (the exact same polygons), this only softens
+   how they're painted. The legend and popups still give the precise
+   threshold for each band; this is a stylistic layer, not new precision. */
+.hazard-glow {
+  filter: blur(5px);
+}

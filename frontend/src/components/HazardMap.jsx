@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import WindIndicator from "./WindIndicator";
@@ -6,6 +6,20 @@ import SeverityLegend from "./SeverityLegend";
 import { bandStyle, drawOrder } from "../utils/severity";
 
 const FALLBACK_CENTER = [13.0067, 80.2206];
+
+const BASE_LAYERS = {
+  street: {
+    label: "🛰️ Satellite",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; OpenStreetMap contributors',
+  },
+  satellite: {
+    label: "🗺️ Map",
+    // Esri World Imagery — free, keyless, standard XYZ tiles.
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+  },
+};
 
 const facilityIcon = new L.DivIcon({
   className: "",
@@ -74,11 +88,51 @@ function Recenter({ lat, lon }) {
   return null;
 }
 
+// Grows a band's polygon outward from the facility rather than snapping it
+// in at full size — every vertex is interpolated from the facility's own
+// coordinates to its final position on an ease-out curve. This only re-runs
+// when the polygon itself changes (a fresh computation), not on every
+// re-render, since centerLat/centerLon are compared by value rather than by
+// the facility object's reference.
+function AnimatedPolygon({ positions, centerLat, centerLon, pathOptions, children, duration = 900 }) {
+  const [current, setCurrent] = useState(() => positions.map(() => [centerLat, centerLon]));
+  const rafRef = useRef();
+
+  useEffect(() => {
+    const from = positions.map(() => [centerLat, centerLon]);
+    const start = performance.now();
+
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setCurrent(
+        positions.map((p, i) => [
+          from[i][0] + (p[0] - from[i][0]) * eased,
+          from[i][1] + (p[1] - from[i][1]) * eased,
+        ])
+      );
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, centerLat, centerLon]);
+
+  return (
+    <Polygon positions={current} pathOptions={pathOptions}>
+      {children}
+    </Polygon>
+  );
+}
+
 export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [], loading = false }) {
+  const [baseLayer, setBaseLayer] = useState("street");
   const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
   const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
   const thermalBands = zones?.thermal_bands || [];
   const overpressureBands = zones?.overpressure_bands || [];
+  const layer = BASE_LAYERS[baseLayer];
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -88,37 +142,38 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
         scrollWheelZoom
         className="w-full h-full rounded-sm border border-ink-700"
       >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <TileLayer attribution={layer.attribution} url={layer.url} />
 
         <MapResize />
         {onPick && <ClickPicker onPick={onPick} />}
         {hasLocation && <Recenter lat={facility.lat} lon={facility.lon} />}
 
-        {drawOrder(thermalBands).map((band) => (
-          <Polygon
-            key={`thermal-${band.severity}`}
+        {hasLocation && drawOrder(thermalBands).map((band) => (
+          <AnimatedPolygon
+            key={`thermal-${band.severity}-${facility.lat}-${facility.lon}`}
             positions={band.polygon}
-            pathOptions={bandStyle(band, "thermal")}
+            centerLat={facility.lat}
+            centerLon={facility.lon}
+            pathOptions={{ ...bandStyle(band, "thermal"), className: "hazard-glow" }}
           >
             <Popup>
               Thermal · {band.severity} · {band.threshold_label}
             </Popup>
-          </Polygon>
+          </AnimatedPolygon>
         ))}
 
-        {drawOrder(overpressureBands).map((band) => (
-          <Polygon
-            key={`overpressure-${band.severity}`}
+        {hasLocation && drawOrder(overpressureBands).map((band) => (
+          <AnimatedPolygon
+            key={`overpressure-${band.severity}-${facility.lat}-${facility.lon}`}
             positions={band.polygon}
+            centerLat={facility.lat}
+            centerLon={facility.lon}
             pathOptions={bandStyle(band, "overpressure")}
           >
             <Popup>
               Overpressure · {band.severity} · {band.threshold_label}
             </Popup>
-          </Polygon>
+          </AnimatedPolygon>
         ))}
 
         {hasLocation && (
@@ -137,6 +192,15 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
           </Marker>
         ))}
       </MapContainer>
+
+      <button
+        type="button"
+        onClick={() => setBaseLayer((l) => (l === "street" ? "satellite" : "street"))}
+        className="absolute top-3 left-3 z-[1000] bg-ink-900/90 border border-ink-700 hover:border-ink-400
+                   rounded-sm px-3 py-1.5 text-xs text-ink-100 font-mono backdrop-blur-sm transition-colors"
+      >
+        {BASE_LAYERS[baseLayer === "street" ? "satellite" : "street"].label}
+      </button>
 
       {loading && (
         <div
