@@ -8,7 +8,11 @@ const MIRRORS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-const TIMEOUT_MS = 7000;
+// Overpass's free instance genuinely takes several seconds for a compound
+// query even when healthy (observed 5.5s for a single-clause query) — too
+// close to a short timeout to leave headroom for the heavier multi-clause
+// queries this app sends, so this errs generous.
+const TIMEOUT_MS = 15000;
 
 async function fetchWithTimeout(url, options) {
   const controller = new AbortController();
