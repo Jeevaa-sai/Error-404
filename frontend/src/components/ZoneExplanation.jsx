@@ -1,17 +1,6 @@
 import { formatMetres, formatSigned, compassPoint } from "../utils/format";
 import { EmptyMessage, SkeletonLines } from "./StatusMessage";
-
-const SEVERITY_COLORS = {
-  high: "#d64545",
-  medium: "#e8a33d",
-  low: "#f0d264",
-};
-
-const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
-
-function sortBands(bands) {
-  return [...bands].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
-}
+import { SEVERITY_COLORS, sortBySeverity } from "../utils/severity";
 
 function BandRow({ band, expanded }) {
   const delta = band.radius_m - band.base_radius_m;
@@ -46,7 +35,7 @@ function HazardBlock({ title, bands, expanded }) {
       <div className="text-ink-400 font-display uppercase tracking-wide text-[10px] mb-1">
         {title}
       </div>
-      {sortBands(bands).map((band) => (
+      {sortBySeverity(bands).map((band) => (
         <BandRow key={band.severity} band={band} expanded={expanded} />
       ))}
     </div>
