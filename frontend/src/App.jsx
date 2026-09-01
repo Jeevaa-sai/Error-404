@@ -150,7 +150,11 @@ function SingleView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+      {/* Compact panels share a row; "why these zones" runs much longer than
+          any of them, so it gets its own full-width row below instead of
+          forcing the whole grid row to match its height and leaving the
+          shorter panels stranded above dead space. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
         <AssetAlerts
           assets={assetsWithStatus}
           pickMode={pickMode}
@@ -159,10 +163,11 @@ function SingleView() {
           onClear={() => setAssets([])}
         />
         <WeatherPanel weather={zones?.weather} loading={loading} />
-        <ZoneExplanation zones={zones} loading={loading} />
         <ExposurePanel zones={zones} />
         <BriefingPanel facility={facility} zones={zones} />
       </div>
+
+      <ZoneExplanation zones={zones} loading={loading} />
     </div>
   );
 }

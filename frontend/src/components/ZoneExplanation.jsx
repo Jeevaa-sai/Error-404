@@ -80,77 +80,81 @@ export default function ZoneExplanation({ zones, loading }) {
     .sort((a, b) => Math.abs(b.percent_change) - Math.abs(a.percent_change));
 
   return (
-    <section className="border border-ink-700 rounded-sm p-3 text-xs space-y-3">
-      <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase">
+    <section className="border border-ink-700 rounded-sm p-3 text-xs">
+      <h3 className="font-display text-xs tracking-wide text-ink-100 uppercase mb-3">
         Why these zones
       </h3>
 
-      <div>
-        <p
-          className={`font-mono ${
-            unchanged ? "text-ink-100" : expanded ? "text-severity-high" : "text-severity-low"
-          }`}
-        >
-          {unchanged
-            ? "Zones are at their still-air size"
-            : `Zones ${expanded ? "expanded" : "shrank"} by ${formatSigned(overallPercent)}`}
-        </p>
-        <p className="text-ink-400 leading-relaxed mt-1">
-          {unchanged
-            ? "No environmental input is raised, so each radius is exactly what the fuel and tank size give on their own."
-            : `The site conditions multiply every radius by ${risk.overall_multiplier}×, on top of the radius the fuel and tank size produce on their own.`}
-        </p>
-      </div>
-
-      {activeContributions.length > 0 && (
-        <div>
-          <div className="text-ink-400 font-display uppercase tracking-wide text-[10px] mb-1">
-            What moved them
-          </div>
-          <ul className="space-y-1.5">
-            {activeContributions.map((c) => (
-              <li key={c.key} className="leading-relaxed">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-ink-100">{c.label}</span>
-                  <span
-                    className={`font-mono shrink-0 ${
-                      c.direction === "expand" ? "text-severity-high" : "text-severity-low"
-                    }`}
-                  >
-                    {formatSigned(c.percent_change)}
-                  </span>
-                </span>
-                <span className="text-ink-700 block">{c.explanation}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {wind && (
-        <div>
-          <div className="text-ink-400 font-display uppercase tracking-wide text-[10px] mb-1">
-            What the wind did
-          </div>
-          <p className="text-ink-700 leading-relaxed">{wind.explanation}</p>
-          {wind.wind_speed_mps > 0 && (
-            <p className="text-ink-400 mt-1">
-              Longest reach is toward{" "}
-              <span className="font-mono text-ink-100">
-                {Math.round(wind.downwind_bearing_deg)}° {compassPoint(wind.downwind_bearing_deg)}
-              </span>
-              .
+      <div className="md:grid md:grid-cols-2 md:gap-6 space-y-3 md:space-y-0">
+        <div className="space-y-3">
+          <div>
+            <p
+              className={`font-mono ${
+                unchanged ? "text-ink-100" : expanded ? "text-severity-high" : "text-severity-low"
+              }`}
+            >
+              {unchanged
+                ? "Zones are at their still-air size"
+                : `Zones ${expanded ? "expanded" : "shrank"} by ${formatSigned(overallPercent)}`}
             </p>
+            <p className="text-ink-400 leading-relaxed mt-1">
+              {unchanged
+                ? "No environmental input is raised, so each radius is exactly what the fuel and tank size give on their own."
+                : `The site conditions multiply every radius by ${risk.overall_multiplier}×, on top of the radius the fuel and tank size produce on their own.`}
+            </p>
+          </div>
+
+          {activeContributions.length > 0 && (
+            <div>
+              <div className="text-ink-400 font-display uppercase tracking-wide text-[10px] mb-1">
+                What moved them
+              </div>
+              <ul className="space-y-1.5">
+                {activeContributions.map((c) => (
+                  <li key={c.key} className="leading-relaxed">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="text-ink-100">{c.label}</span>
+                      <span
+                        className={`font-mono shrink-0 ${
+                          c.direction === "expand" ? "text-severity-high" : "text-severity-low"
+                        }`}
+                      >
+                        {formatSigned(c.percent_change)}
+                      </span>
+                    </span>
+                    <span className="text-ink-700 block">{c.explanation}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {wind && (
+            <div>
+              <div className="text-ink-400 font-display uppercase tracking-wide text-[10px] mb-1">
+                What the wind did
+              </div>
+              <p className="text-ink-700 leading-relaxed">{wind.explanation}</p>
+              {wind.wind_speed_mps > 0 && (
+                <p className="text-ink-400 mt-1">
+                  Longest reach is toward{" "}
+                  <span className="font-mono text-ink-100">
+                    {Math.round(wind.downwind_bearing_deg)}° {compassPoint(wind.downwind_bearing_deg)}
+                  </span>
+                  .
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
 
-      <div className="space-y-2 pt-1 border-t border-ink-700">
-        <div className="text-ink-700 text-[10px]">
-          Radius still-air → after environment (before wind stretch)
+        <div className="space-y-2 md:pl-6 md:border-l border-ink-700 pt-3 md:pt-0 border-t md:border-t-0">
+          <div className="text-ink-700 text-[10px]">
+            Radius still-air → after environment (before wind stretch)
+          </div>
+          <HazardBlock title="Thermal radiation" bands={zones.thermal_bands} expanded={expanded} />
+          <HazardBlock title="Blast overpressure" bands={zones.overpressure_bands} expanded={expanded} />
         </div>
-        <HazardBlock title="Thermal radiation" bands={zones.thermal_bands} expanded={expanded} />
-        <HazardBlock title="Blast overpressure" bands={zones.overpressure_bands} expanded={expanded} />
       </div>
     </section>
   );
