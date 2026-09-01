@@ -3,7 +3,7 @@ from typing import List, Tuple, Literal
 
 FuelType = Literal[
     "propane", "lng", "gasoline", "diesel",
-    "kerosene", "crude_oil", "ethanol", "butane",
+    "kerosene", "crude_oil", "ethanol", "butane", "lpg",
 ]
 HazardType = Literal["thermal", "overpressure"]
 Severity = Literal["high", "medium", "low"]

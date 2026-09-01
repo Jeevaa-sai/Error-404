@@ -9,6 +9,7 @@ const FUEL_OPTIONS = [
   { value: "crude_oil", label: "Crude oil" },
   { value: "ethanol", label: "Ethanol" },
   { value: "butane", label: "Butane" },
+  { value: "lpg", label: "LPG" },
 ];
 
 const DEFAULT_INPUT = {
@@ -43,7 +44,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
 
   useEffect(() => {
     if (location) {
-      setForm((f) => ({ ...f, lat: location.lat, lon: location.lon }));
+      setForm((f) => ({ ...f, lat: location.lat ?? "", lon: location.lon ?? "" }));
     }
   }, [location]);
 
@@ -89,10 +90,17 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
   }
 
   function handleReset() {
-    const base = initial || DEFAULT_INPUT;
-    setForm(base);
+    setForm({
+      lat: "",
+      lon: "",
+      tank_volume_m3: 0,
+      tank_diameter_m: 0,
+      fuel_type: "propane",
+      wind_speed_mps: 0,
+      wind_direction_deg: 0,
+    });
     setGeoStatus(null);
-    onLocationChange?.(base.lat, base.lon);
+    onLocationChange?.(null, null);
     onReset?.();
   }
 
