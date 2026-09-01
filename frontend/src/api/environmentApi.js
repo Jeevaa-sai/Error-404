@@ -39,18 +39,25 @@ async function fetchOverpassCounts(lat, lon) {
 
   const counts = {
     buildings: 0, treeNodes: 0, forestWays: 0,
-    parkingWays: 0, highwayWays: 0, occupancyPoints: 0,
+    parkingWays: 0, occupancyPoints: 0,
   };
+  // OSM splits a single street into a separate way at every intersection,
+  // so raw way-count wildly overstates road density (a normal block can
+  // have 15-20+ segments). Count distinct street names instead — falling
+  // back to the way id for unnamed segments, which then count individually
+  // but rarely dominate the total the way named-street splitting does.
+  const streetIds = new Set();
 
   for (const el of data.elements || []) {
     if (el.tags?.building) counts.buildings++;
     else if (el.tags?.natural === "tree") counts.treeNodes++;
     else if (el.tags?.natural === "wood" || el.tags?.landuse === "forest") counts.forestWays++;
     else if (el.tags?.amenity === "parking") counts.parkingWays++;
-    else if (el.tags?.highway) counts.highwayWays++;
+    else if (el.tags?.highway) streetIds.add(el.tags?.name || `way:${el.id}`);
     else if (el.tags?.shop || el.tags?.amenity) counts.occupancyPoints++;
   }
 
+  counts.distinctStreets = streetIds.size;
   return counts;
 }
 
@@ -105,7 +112,10 @@ export async function fetchEnvironmentEstimate(lat, lon) {
 
   return {
     tree_density: clamp01((counts.treeNodes + counts.forestWays * 5) / 40),
-    vehicle_density: clamp01((counts.parkingWays * 3 + counts.highwayWays) / 20),
+    // Weighted toward actual parking (the real vehicle signal); distinct
+    // streets contribute only a small nudge so a normal, walkable block
+    // doesn't read as maximum vehicle density just for having several roads.
+    vehicle_density: clamp01((counts.parkingWays * 5 + counts.distinctStreets * 0.5) / 20),
     nearby_buildings: Math.min(counts.buildings, 20),
     terrain_roughness,
     occupancy_risk: clamp01(counts.occupancyPoints / 15),
