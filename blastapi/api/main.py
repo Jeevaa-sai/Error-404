@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 try:
     from .schemas import FacilityInput, ZoneResponse, SeverityBand
@@ -73,3 +76,11 @@ def calculate_zones(input: FacilityInput):
         ))
 
     return ZoneResponse(thermal_bands=thermal_bands, overpressure_bands=overpressure_bands)
+
+
+# Serves the built frontend (frontend/dist) from the same origin as the API,
+# so the whole app is reachable through one link/port. Optional: only mounts
+# if the build exists, so the API still runs standalone without it.
+_frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+if os.path.isdir(_frontend_dist):
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
