@@ -151,7 +151,7 @@ function SingleView() {
         <ExposurePanel zones={zones} />
         <BriefingPanel facility={facility} zones={zones} />
       </aside>
-      <div className="flex-1 min-w-0 min-h-[420px]">
+      <div className="flex-1 min-w-0 h-[420px] lg:h-[600px]">
         <HazardMap
           facility={mapFacility}
           zones={zones}
