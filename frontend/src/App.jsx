@@ -9,6 +9,11 @@ const DEFAULT_FACILITY = {
   fuel_type: "propane", wind_speed_mps: 5, wind_direction_deg: 45,
 };
 
+const EMPTY_FACILITY = {
+  lat: null, lon: null, tank_volume_m3: 0, tank_diameter_m: 0,
+  fuel_type: "propane", wind_speed_mps: 0, wind_direction_deg: 0,
+};
+
 function SingleView() {
   const [location, setLocation] = useState({ lat: DEFAULT_FACILITY.lat, lon: DEFAULT_FACILITY.lon });
   const [facility, setFacility] = useState(DEFAULT_FACILITY);
@@ -45,7 +50,8 @@ function SingleView() {
           onReset={() => {
             setZones(null);
             setError(null);
-            setFacility(DEFAULT_FACILITY);
+            setFacility(EMPTY_FACILITY);
+            setLocation({ lat: null, lon: null });
           }}
         />
         {error && (

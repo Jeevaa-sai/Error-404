@@ -13,6 +13,11 @@ const SITE_B_DEFAULT = {
   fuel_type: "diesel", wind_speed_mps: 3, wind_direction_deg: 200,
 };
 
+const EMPTY_FACILITY = {
+  lat: null, lon: null, tank_volume_m3: 0, tank_diameter_m: 0,
+  fuel_type: "propane", wind_speed_mps: 0, wind_direction_deg: 0,
+};
+
 function ConfigColumn({ label, initial }) {
   const [location, setLocation] = useState({ lat: initial.lat, lon: initial.lon });
   const [facility, setFacility] = useState(initial);
@@ -49,7 +54,8 @@ function ConfigColumn({ label, initial }) {
         onReset={() => {
           setZones(null);
           setError(null);
-          setFacility(initial);
+          setFacility(EMPTY_FACILITY);
+          setLocation({ lat: null, lon: null });
         }}
       />
       {error && (

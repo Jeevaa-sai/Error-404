@@ -61,6 +61,12 @@ FUEL_PROPERTIES = {
         "chi_r": 0.30,
         "mass_burning_rate_kg_m2_s": 0.078,
     },
+    "lpg": {
+        "density_kg_per_m3": 510.0,
+        "heat_of_combustion_kj_per_kg": 46000.0,
+        "chi_r": 0.29,
+        "mass_burning_rate_kg_m2_s": 0.099,
+    },
 }
 
 def get_fuel_properties(fuel_type):

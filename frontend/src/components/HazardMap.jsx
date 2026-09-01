@@ -9,6 +9,8 @@ const SEVERITY_COLORS = {
   low: "#f0d264",
 };
 
+const FALLBACK_CENTER = [13.0067, 80.2206];
+
 const facilityIcon = new L.DivIcon({
   className: "",
   html: `<div style="width:14px;height:14px;background:#ff6a13;border:2px solid #0f1720;
@@ -32,7 +34,8 @@ function severityOrderDesc(bands) {
 }
 
 export default function HazardMap({ facility, zones, height = "100%", onPick }) {
-  const center = [facility.lat, facility.lon];
+  const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
+  const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
   const thermalBands = zones?.thermal_bands || [];
   const overpressureBands = zones?.overpressure_bands || [];
 
@@ -85,9 +88,11 @@ export default function HazardMap({ facility, zones, height = "100%", onPick }) 
           </Polygon>
         ))}
 
-        <Marker position={center} icon={facilityIcon}>
-          <Popup>{facility.name || "Facility"}{onPick ? " — click map to move" : ""}</Popup>
-        </Marker>
+        {hasLocation && (
+          <Marker position={center} icon={facilityIcon}>
+            <Popup>{facility.name || "Facility"}{onPick ? " — click map to move" : ""}</Popup>
+          </Marker>
+        )}
       </MapContainer>
 
       <WindIndicator
