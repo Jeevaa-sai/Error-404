@@ -1,7 +1,7 @@
 // Single source of truth for where the backend lives.
 //
 // Set VITE_API_BASE in frontend/.env to the backend machine's address, e.g.
-//   VITE_API_BASE=http://192.168.1.42:8000
+//   VITE_API_BASE=http://<backend-machine-ip>:8000
 // Vite inlines it at build time, so restart `npm run dev` after changing it.
 //
 // The fallback only works when the backend happens to sit on the same host
