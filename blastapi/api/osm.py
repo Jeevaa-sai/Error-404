@@ -1,6 +1,6 @@
 import json
 import math
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -12,15 +12,26 @@ from urllib.request import Request, urlopen
 # with a bare "Failed to fetch" the user can't act on. Proxying through the
 # server we already control sidesteps that class of failure entirely, and
 # matches how /weather already proxies OpenWeather.
+#
+# kumi.systems and private.coffee were dropped after both returned 500
+# repeatedly. overpass.osm.ch was tried and dropped too, but for a worse
+# reason than an error: it answered FAST with a seemingly valid but empty
+# result set for a real, populated area (0 elements vs. 93 from
+# z.overpass-api.de for the identical query) — its regional data replication
+# doesn't cover everywhere. A fast wrong answer defeats the whole point of
+# racing mirrors, so only official overpass-api.de nodes are listed here;
+# they mirror the same complete dataset, just at different endpoints.
 OVERPASS_MIRRORS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
 ]
 ELEVATION_URL = "https://api.open-meteo.com/v1/elevation"
-# Overpass's free instance can genuinely take upwards of 15s under load —
-# observed directly during testing — so this errs generous rather than
-# aborting a request that would have succeeded a few seconds later.
 REQUEST_TIMEOUT_S = 20
+# Mirrors are raced in parallel (see _run_overpass_query), so this bounds a
+# single mirror's wait, not the total — worst case is ~this long, not this
+# multiplied by the mirror count.
+MIRROR_TIMEOUT_S = 12
 USER_AGENT = "DER-02-API/1.0"
 RADIUS_M = 300
 EARTH_RADIUS_M = 6371000.0
@@ -39,13 +50,32 @@ def _get_json(url, timeout=REQUEST_TIMEOUT_S):
 
 
 def _run_overpass_query(query):
-    last_error = None
-    for url in OVERPASS_MIRRORS:
-        try:
-            return _post_json(url, query)
-        except (URLError, HTTPError, TimeoutError, OSError, ValueError) as exc:
-            last_error = exc
-    raise last_error or RuntimeError("All Overpass mirrors failed")
+    """Races every mirror in parallel and returns the first success.
+
+    A sequential try-then-fall-back approach pays each mirror's full timeout
+    in the worst case (here, up to 4x MIRROR_TIMEOUT_S). Racing them instead
+    means the total wait is bounded by whichever mirror answers first — if
+    any one is healthy, the response comes back at that mirror's own speed,
+    not delayed by the others being tried first.
+    """
+    pool = ThreadPoolExecutor(max_workers=len(OVERPASS_MIRRORS))
+    try:
+        futures = {
+            pool.submit(_post_json, url, query, MIRROR_TIMEOUT_S): url
+            for url in OVERPASS_MIRRORS
+        }
+        last_error = None
+        for future in as_completed(futures, timeout=MIRROR_TIMEOUT_S + 3):
+            try:
+                return future.result()
+            except (URLError, HTTPError, TimeoutError, OSError, ValueError) as exc:
+                last_error = exc
+        raise last_error or RuntimeError("All Overpass mirrors failed")
+    finally:
+        # Don't block returning on stragglers that lost the race — they'll
+        # finish (or hit their own timeout) in the background and get
+        # discarded.
+        pool.shutdown(wait=False)
 
 
 def _offset_latlon(lat, lon, north_m, east_m):
