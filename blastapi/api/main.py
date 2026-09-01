@@ -5,19 +5,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 try:
-    from .schemas import FacilityInput, ZoneResponse, SeverityBand
+    from .schemas import FacilityInput, ZoneResponse, SeverityBand, WeatherInfo, RiskAdjustment
     from .severity_bands import (
         THERMAL_BANDS_KW_M2, OVERPRESSURE_BANDS_KPA,
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from .geometry import generate_wind_stretched_polygon
+    from .weather import get_weather_for_location
+    from .exposure import calculate_environment_multiplier
 except ImportError:
-    from schemas import FacilityInput, ZoneResponse, SeverityBand
+    from schemas import FacilityInput, ZoneResponse, SeverityBand, WeatherInfo, RiskAdjustment
     from severity_bands import (
         THERMAL_BANDS_KW_M2, OVERPRESSURE_BANDS_KPA,
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from geometry import generate_wind_stretched_polygon
+    from weather import get_weather_for_location
+    from exposure import calculate_environment_multiplier
 
 from physics.tnt_equivalent import calculate_tnt_equivalent_mass
 from physics.overpressure import solve_radius_for_overpressure
@@ -39,8 +43,22 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/fuels")
+def list_fuels():
+    supported = ["propane", "lng", "gasoline", "diesel"]
+    return {"fuels": supported}
+
+
 @app.post("/calculate-zones", response_model=ZoneResponse)
 def calculate_zones(input: FacilityInput):
+    weather = get_weather_for_location(input.lat, input.lon, input.use_live_weather)
+    wind_speed = float(input.wind_speed_mps if input.wind_speed_mps > 0 else weather["wind_speed_mps"])
+    wind_direction = float(input.wind_direction_deg if input.wind_direction_deg > 0 else weather["wind_direction_deg"])
+
+    environment = input.environment or {}
+    risk_adjustment = calculate_environment_multiplier(environment)
+    env_multiplier = float(risk_adjustment["overall_multiplier"])
+
     props = get_fuel_properties(input.fuel_type)
     chi_r = props["chi_r"]
 
@@ -49,10 +67,10 @@ def calculate_zones(input: FacilityInput):
 
     thermal_bands = []
     for severity, target_kw_m2 in THERMAL_BANDS_KW_M2.items():
-        radius_m = solve_radius_for_thermal_flux(target_kw_m2, heat_release_kw, chi_r)
+        radius_m = solve_radius_for_thermal_flux(target_kw_m2, heat_release_kw, chi_r) * env_multiplier
         polygon = generate_wind_stretched_polygon(
             input.lat, input.lon, radius_m,
-            input.wind_speed_mps, input.wind_direction_deg,
+            wind_speed, wind_direction,
         )
         thermal_bands.append(SeverityBand(
             severity=severity,
@@ -63,10 +81,10 @@ def calculate_zones(input: FacilityInput):
 
     overpressure_bands = []
     for severity, target_kpa in OVERPRESSURE_BANDS_KPA.items():
-        radius_m = solve_radius_for_overpressure(target_kpa, tnt_mass_kg)
+        radius_m = solve_radius_for_overpressure(target_kpa, tnt_mass_kg) * env_multiplier
         polygon = generate_wind_stretched_polygon(
             input.lat, input.lon, radius_m,
-            input.wind_speed_mps, input.wind_direction_deg,
+            wind_speed, wind_direction,
         )
         overpressure_bands.append(SeverityBand(
             severity=severity,
@@ -75,7 +93,13 @@ def calculate_zones(input: FacilityInput):
             polygon=polygon,
         ))
 
-    return ZoneResponse(thermal_bands=thermal_bands, overpressure_bands=overpressure_bands)
+    return ZoneResponse(
+        thermal_bands=thermal_bands,
+        overpressure_bands=overpressure_bands,
+        weather=WeatherInfo(**weather),
+        risk_adjustment=RiskAdjustment(**risk_adjustment),
+        site={"lat": input.lat, "lon": input.lon},
+    )
 
 
 # Serves the built frontend (frontend/dist) from the same origin as the API,
