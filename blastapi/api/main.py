@@ -1,6 +1,7 @@
 import os
+from urllib.error import URLError
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -23,7 +24,7 @@ try:
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from .geometry import generate_wind_stretched_polygon, describe_wind_effect
-    from .weather import get_weather_for_location
+    from .weather import get_weather_for_location, fetch_openweather
     from .exposure import calculate_environment_multiplier
 except ImportError:
     from schemas import (
@@ -35,7 +36,7 @@ except ImportError:
         THERMAL_LABELS, OVERPRESSURE_LABELS,
     )
     from geometry import generate_wind_stretched_polygon, describe_wind_effect
-    from weather import get_weather_for_location
+    from weather import get_weather_for_location, fetch_openweather
     from exposure import calculate_environment_multiplier
 
 from physics.tnt_equivalent import calculate_tnt_equivalent_mass
@@ -66,6 +67,42 @@ def health():
 @app.get("/fuels")
 def list_fuels():
     return {"fuels": sorted(FUEL_PROPERTIES)}
+
+
+@app.get("/weather", response_model=WeatherInfo)
+def current_weather(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+):
+    """Proxy OpenWeather for the browser.
+
+    The frontend's "use live wind" button calls this instead of contacting a
+    provider directly, so OPENWEATHER_API_KEY stays on the server and is never
+    shipped in the JavaScript bundle. Unlike /calculate-zones this does not
+    fall back to a stand-in — the button should report a real failure rather
+    than quietly filling the form with invented numbers.
+    """
+    try:
+        result = fetch_openweather(lat, lon)
+    except (URLError, TimeoutError, OSError, ValueError, KeyError):
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach OpenWeather. Enter the wind manually.",
+        )
+
+    if result is None:
+        if not os.getenv("OPENWEATHER_API_KEY"):
+            raise HTTPException(
+                status_code=503,
+                detail="Live weather is not configured on the server "
+                       "(OPENWEATHER_API_KEY is not set).",
+            )
+        raise HTTPException(
+            status_code=502,
+            detail="OpenWeather returned no wind data for this location.",
+        )
+
+    return WeatherInfo(**result)
 
 
 @app.post("/calculate-zones", response_model=ZoneResponse)

@@ -5,9 +5,11 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-# Providers are tried in order. Open-Meteo needs no API key, so live weather
-# works out of the box; OpenWeather is preferred when a key is configured
-# because it reports measured station data rather than a forecast grid.
+# OpenWeather is the project's single weather provider. The key is read from
+# the environment (see api/config.py, which loads blastapi/.env) and never
+# leaves the server — the browser reaches OpenWeather through GET /weather
+# rather than calling it directly, so the key is not shipped to clients.
+OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 REQUEST_TIMEOUT_S = 5
 USER_AGENT = "DER-02-API/1.0"
 
@@ -16,87 +18,60 @@ def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def _as_utc_iso(value):
-    """Normalise Open-Meteo's naive "2026-09-01T17:15" into an explicit UTC
-    timestamp. Without the offset, JavaScript's Date parses it as local time
-    and "last updated" is wrong by the viewer's timezone.
-    """
-    if not value:
-        return _now_iso()
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return _now_iso()
-    if parsed.tzinfo is None:
-        # The request omits &timezone=, so Open-Meteo answers in GMT.
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc).isoformat()
-
-
 def _get_json(url):
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=REQUEST_TIMEOUT_S) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _fetch_openweather(lat, lon):
-    """Measured conditions from the nearest station. Requires an API key."""
+def _as_utc_iso(epoch_seconds):
+    """OpenWeather reports observation time as a Unix epoch in `dt`. Convert it
+    to an explicit UTC string — a naive timestamp would be parsed as local time
+    by JavaScript's Date, skewing "last updated" by the viewer's offset.
+    """
+    if epoch_seconds is None:
+        return _now_iso()
+    try:
+        return datetime.fromtimestamp(float(epoch_seconds), tz=timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError):
+        return _now_iso()
+
+
+def fetch_openweather(lat, lon):
+    """Measured conditions from the nearest station.
+
+    Returns None when no key is configured or the response carries no wind,
+    and raises the underlying error if the request itself fails, so callers
+    can decide whether to fall back or surface the problem.
+    """
     api_key = os.getenv("OPENWEATHER_API_KEY")
     if not api_key:
         return None
 
     params = urlencode({"lat": lat, "lon": lon, "appid": api_key, "units": "metric"})
-    payload = _get_json(f"https://api.openweathermap.org/data/2.5/weather?{params}")
+    payload = _get_json(f"{OPENWEATHER_URL}?{params}")
     wind = payload.get("wind", {})
     if wind.get("speed") is None:
         return None
 
     speed = float(wind["speed"])
+    gust = wind.get("gust")
     return {
         "source": "openweather",
         "wind_speed_mps": round(speed, 1),
-        "wind_direction_deg": float(wind.get("deg", 0.0)),
-        "gust_mps": round(float(wind.get("gust", speed + 1.0)), 1),
-        "timestamp": _now_iso(),
-        "confidence": "live",
-    }
-
-
-def _fetch_open_meteo(lat, lon):
-    """Forecast-grid conditions. No API key, so this is the default live source."""
-    params = urlencode({
-        "latitude": lat,
-        "longitude": lon,
-        "current": "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
-        "wind_speed_unit": "ms",
-    })
-    payload = _get_json(f"https://api.open-meteo.com/v1/forecast?{params}")
-    current = payload.get("current", {})
-    speed = current.get("wind_speed_10m")
-    direction = current.get("wind_direction_10m")
-    if speed is None or direction is None:
-        return None
-
-    gust = current.get("wind_gusts_10m")
-    return {
-        "source": "open-meteo",
-        "wind_speed_mps": round(float(speed), 1),
-        "wind_direction_deg": float(direction) % 360,
+        "wind_direction_deg": float(wind.get("deg", 0.0)) % 360,
         "gust_mps": round(float(gust), 1) if gust is not None else None,
-        # Open-Meteo reports the observation time of the grid cell, which can
-        # lag the request by up to its 15-minute interval. Prefer it over
-        # "now" so the panel's "last updated" reflects the data, not the call.
-        "timestamp": _as_utc_iso(current.get("time")),
+        "timestamp": _as_utc_iso(payload.get("dt")),
         "confidence": "live",
     }
 
 
 def _fallback_weather(lat, lon):
-    """Deterministic stand-in used only when every live provider is unreachable.
+    """Deterministic stand-in used when OpenWeather is unavailable.
 
     Derived from the coordinates so a given site always renders the same way,
     which keeps demos and screenshots reproducible offline. It is not a
-    measurement, and is reported as confidence "fallback" so the UI can say so.
+    measurement, and is reported as confidence "fallback" so the UI says so.
     """
     seed = abs(lat) + abs(lon)
     wind_speed_mps = 2.5 + (seed % 7.0) * 0.8
@@ -112,19 +87,16 @@ def _fallback_weather(lat, lon):
 
 
 def get_weather_for_location(lat, lon, use_live_weather=True):
-    """Return live weather if any provider answers, otherwise a stand-in."""
+    """Return live OpenWeather conditions, otherwise a stand-in."""
     if not use_live_weather:
         result = _fallback_weather(lat, lon)
         result["source"] = "manual"
         result["confidence"] = "manual"
         return result
 
-    for provider in (_fetch_openweather, _fetch_open_meteo):
-        try:
-            result = provider(lat, lon)
-        except (URLError, TimeoutError, OSError, ValueError, KeyError):
-            continue
-        if result:
-            return result
+    try:
+        result = fetch_openweather(lat, lon)
+    except (URLError, TimeoutError, OSError, ValueError, KeyError):
+        result = None
 
-    return _fallback_weather(lat, lon)
+    return result or _fallback_weather(lat, lon)
