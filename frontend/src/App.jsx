@@ -8,6 +8,7 @@ import AssetAlerts from "./components/AssetAlerts";
 import WeatherPanel from "./components/WeatherPanel";
 import ZoneExplanation from "./components/ZoneExplanation";
 import { ErrorMessage } from "./components/StatusMessage";
+import BackendStatus from "./components/BackendStatus";
 import { DEFAULT_ENVIRONMENT } from "./utils/environment";
 import { calculateZones } from "./api/zonesApi";
 import { buildShareUrl, facilityFromLocation } from "./utils/share";
@@ -175,6 +176,8 @@ export default function App() {
           </h1>
           <p className="text-xs text-ink-400">DER-02 — Industrial Fire &amp; Explosion Response</p>
         </div>
+        <div className="flex items-center gap-2">
+        <BackendStatus />
         <nav className="flex gap-1 bg-ink-900 border border-ink-700 rounded-sm p-1">
           {["single", "compare"].map((m) => (
             <button
@@ -190,6 +193,7 @@ export default function App() {
             </button>
           ))}
         </nav>
+        </div>
       </header>
 
       <main className="flex-1 p-5">
