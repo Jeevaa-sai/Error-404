@@ -3,20 +3,28 @@ import FacilityForm from "./FacilityForm";
 import HazardMap from "./HazardMap";
 import { calculateZones } from "../api/zonesApi";
 import { pointInPolygon } from "../utils/geo";
+import ComparisonSummary from "./ComparisonSummary";
+import WeatherPanel from "./WeatherPanel";
+import ZoneExplanation from "./ZoneExplanation";
+import { ErrorMessage } from "./StatusMessage";
+import { DEFAULT_ENVIRONMENT } from "../utils/environment";
 
 const SITE_A_DEFAULT = {
   lat: 13.0067, lon: 80.2206, tank_volume_m3: 50, tank_diameter_m: 12,
   fuel_type: "propane", wind_speed_mps: 6, wind_direction_deg: 45,
+  use_live_weather: false, environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 const SITE_B_DEFAULT = {
   lat: 13.0067, lon: 80.2206, tank_volume_m3: 150, tank_diameter_m: 20,
   fuel_type: "diesel", wind_speed_mps: 3, wind_direction_deg: 200,
+  use_live_weather: false, environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 const EMPTY_FACILITY = {
   lat: null, lon: null, tank_volume_m3: 0, tank_diameter_m: 0,
   fuel_type: "propane", wind_speed_mps: 0, wind_direction_deg: 0,
+  use_live_weather: false, environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 // Checks whether `point` [lat, lon] falls inside any band of `zones`,
@@ -36,10 +44,12 @@ function ConfigColumn({ label, initial, onState }) {
   const [zones, setZones] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastInput, setLastInput] = useState(null);
 
   async function handleSubmit(input) {
     setLoading(true);
     setError(null);
+    setLastInput(input);
     try {
       const result = await calculateZones(input);
       setZones(result);
@@ -47,7 +57,7 @@ function ConfigColumn({ label, initial, onState }) {
       setLocation({ lat: input.lat, lon: input.lon });
       onState?.({ facility: input, zones: result });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not reach the hazard-zone service.");
     } finally {
       setLoading(false);
     }
@@ -69,21 +79,25 @@ function ConfigColumn({ label, initial, onState }) {
           setError(null);
           setFacility(EMPTY_FACILITY);
           setLocation({ lat: null, lon: null });
+          setLastInput(null);
           onState?.({ facility: null, zones: null });
         }}
       />
-      {error && (
-        <div className="text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">
-          {error}
-        </div>
-      )}
+      <ErrorMessage
+        message={error}
+        onRetry={lastInput ? () => handleSubmit(lastInput) : undefined}
+        retryLabel="Retry"
+      />
       <div className="h-72">
         <HazardMap
           facility={mapFacility}
           zones={zones}
           onPick={(lat, lon) => setLocation({ lat, lon })}
+          loading={loading}
         />
       </div>
+      <WeatherPanel weather={zones?.weather} loading={loading} />
+      <ZoneExplanation zones={zones} loading={loading} />
     </div>
   );
 }
@@ -120,6 +134,8 @@ export default function ComparisonPanel() {
           )}
         </div>
       )}
+
+      <ComparisonSummary siteA={siteA} siteB={siteB} />
 
       <div>
         <h3 className="font-display text-sm tracking-wide text-ink-100 uppercase pb-1 border-b border-ink-700 mb-2">

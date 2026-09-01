@@ -44,7 +44,7 @@ function severityOrderDesc(bands) {
   return [...bands].sort((a, b) => order[b.severity] - order[a.severity]);
 }
 
-export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [] }) {
+export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [], loading = false }) {
   const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
   const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
   const thermalBands = zones?.thermal_bands || [];
@@ -115,6 +115,32 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
           </Marker>
         ))}
       </MapContainer>
+
+      {loading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-[1000] flex items-center justify-center
+                     bg-ink-950/50 backdrop-blur-[1px] rounded-sm pointer-events-none"
+        >
+          <span className="flex items-center gap-2 bg-ink-900/95 border border-ink-700
+                           rounded-sm px-3 py-2 text-xs text-ink-100">
+            <span
+              className="w-3 h-3 rounded-full border-2 border-ink-700 border-t-hazard-500 animate-spin"
+              aria-hidden="true"
+            />
+            Calculating hazard zones…
+          </span>
+        </div>
+      )}
+
+      {!hasLocation && !loading && (
+        <div className="absolute inset-x-0 top-3 z-[1000] flex justify-center pointer-events-none">
+          <span className="bg-ink-900/95 border border-ink-700 rounded-sm px-3 py-1.5 text-xs text-ink-400">
+            Click the map to place the facility
+          </span>
+        </div>
+      )}
 
       <WindIndicator
         windSpeedMps={facility.wind_speed_mps}

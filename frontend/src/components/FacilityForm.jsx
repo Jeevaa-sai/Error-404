@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchCurrentWind } from "../api/weatherApi";
+import EnvironmentControls from "./EnvironmentControls";
+import { DEFAULT_ENVIRONMENT } from "../utils/environment";
+import { ErrorMessage } from "./StatusMessage";
 
 const FUEL_OPTIONS = [
   { value: "propane", label: "Propane" },
@@ -21,6 +24,8 @@ const DEFAULT_INPUT = {
   fuel_type: "propane",
   wind_speed_mps: 5,
   wind_direction_deg: 45,
+  use_live_weather: false,
+  environment: { ...DEFAULT_ENVIRONMENT },
 };
 
 function Field({ label, unit, children }) {
@@ -101,6 +106,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
 
   function handleSubmit(e) {
     e.preventDefault();
+    const environment = form.environment || DEFAULT_ENVIRONMENT;
     onSubmit({
       ...form,
       lat: Number(form.lat),
@@ -109,6 +115,14 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
       tank_diameter_m: Number(form.tank_diameter_m),
       wind_speed_mps: Number(form.wind_speed_mps),
       wind_direction_deg: Number(form.wind_direction_deg),
+      use_live_weather: Boolean(form.use_live_weather),
+      environment: {
+        tree_density: Number(environment.tree_density) || 0,
+        vehicle_density: Number(environment.vehicle_density) || 0,
+        nearby_buildings: Math.round(Number(environment.nearby_buildings) || 0),
+        terrain_roughness: Number(environment.terrain_roughness) || 0,
+        occupancy_risk: Number(environment.occupancy_risk) || 0,
+      },
     });
   }
 
@@ -121,8 +135,11 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
       fuel_type: "propane",
       wind_speed_mps: 0,
       wind_direction_deg: 0,
+      use_live_weather: false,
+      environment: { ...DEFAULT_ENVIRONMENT },
     });
     setGeoStatus(null);
+    setWindStatus(null);
     onLocationChange?.(null, null);
     onReset?.();
   }
@@ -147,7 +164,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
         </button>
       </div>
       {geoStatus && geoStatus !== "loading" && (
-        <p className="text-xs text-severity-high -mt-2">{geoStatus}</p>
+        <ErrorMessage message={geoStatus} onRetry={useMyLocation} retryLabel="Retry" />
       )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Latitude">
@@ -219,7 +236,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
         </button>
       </div>
       {windStatus && windStatus !== "loading" && (
-        <p className="text-xs text-severity-high -mt-2">{windStatus}</p>
+        <ErrorMessage message={windStatus} onRetry={autoFillWind} retryLabel="Retry" />
       )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Wind speed" unit="m/s">
@@ -243,6 +260,22 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial, loca
           />
         </Field>
       </div>
+
+      <label className="flex items-center gap-2 text-xs text-ink-400 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={Boolean(form.use_live_weather)}
+          onChange={(e) => update("use_live_weather", e.target.checked)}
+          className="accent-hazard-500"
+        />
+        Let the server fetch live weather when wind is left at 0
+      </label>
+
+      <EnvironmentControls
+        value={form.environment || DEFAULT_ENVIRONMENT}
+        onChange={(env) => update("environment", env)}
+        disabled={isLoading}
+      />
 
       <div className="flex gap-2 mt-2">
         <button
