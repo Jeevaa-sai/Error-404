@@ -102,3 +102,27 @@ class ZoneResponse(BaseModel):
     risk_adjustment: Optional[RiskAdjustment] = None
     wind_effect: Optional[WindEffect] = None
     site: Optional[dict] = None
+
+
+class EnvironmentEstimate(BaseModel):
+    """Auto-fill values derived from OpenStreetMap + elevation data around a
+    site. terrain_roughness is Optional: the elevation lookup is best-effort
+    and simply omitted (not failed) when it errors.
+    """
+    tree_density: float
+    vehicle_density: float
+    nearby_buildings: int
+    terrain_roughness: Optional[float] = None
+    occupancy_risk: float
+
+
+class ExposureSite(BaseModel):
+    lat: float
+    lon: float
+    building: bool
+    amenity: Optional[str] = None
+    name: Optional[str] = None
+
+
+class ExposureResponse(BaseModel):
+    elements: List[ExposureSite]

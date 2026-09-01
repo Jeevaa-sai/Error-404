@@ -17,7 +17,7 @@ _loaded_env = load_env_file()
 try:
     from .schemas import (
         FacilityInput, ZoneResponse, SeverityBand, WeatherInfo,
-        RiskAdjustment, WindEffect,
+        RiskAdjustment, WindEffect, EnvironmentEstimate, ExposureResponse,
     )
     from .severity_bands import (
         THERMAL_BANDS_KW_M2, OVERPRESSURE_BANDS_KPA,
@@ -26,10 +26,11 @@ try:
     from .geometry import generate_wind_stretched_polygon, describe_wind_effect
     from .weather import get_weather_for_location, fetch_openweather, fetch_open_meteo
     from .exposure import calculate_environment_multiplier
+    from .osm import estimate_environment, fetch_exposure
 except ImportError:
     from schemas import (
         FacilityInput, ZoneResponse, SeverityBand, WeatherInfo,
-        RiskAdjustment, WindEffect,
+        RiskAdjustment, WindEffect, EnvironmentEstimate, ExposureResponse,
     )
     from severity_bands import (
         THERMAL_BANDS_KW_M2, OVERPRESSURE_BANDS_KPA,
@@ -38,6 +39,7 @@ except ImportError:
     from geometry import generate_wind_stretched_polygon, describe_wind_effect
     from weather import get_weather_for_location, fetch_openweather, fetch_open_meteo
     from exposure import calculate_environment_multiplier
+    from osm import estimate_environment, fetch_exposure
 
 from physics.tnt_equivalent import calculate_tnt_equivalent_mass
 from physics.overpressure import solve_radius_for_overpressure
@@ -94,6 +96,45 @@ def current_weather(
         status_code=502,
         detail="No weather provider could be reached. Enter the wind manually.",
     )
+
+
+@app.get("/environment-estimate", response_model=EnvironmentEstimate)
+def environment_estimate(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+):
+    """Proxy OpenStreetMap + elevation lookups for the environment auto-fill
+    button, for the same reason /weather proxies OpenWeather: some networks
+    block or filter a browser calling third-party API hosts directly, which
+    otherwise surfaces as an unactionable "Failed to fetch".
+    """
+    try:
+        return EnvironmentEstimate(**estimate_environment(lat, lon))
+    except (URLError, TimeoutError, OSError, ValueError, KeyError):
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach OpenStreetMap. Adjust the sliders manually.",
+        )
+
+
+@app.get("/exposure", response_model=ExposureResponse)
+def exposure(
+    min_lat: float = Query(ge=-90, le=90),
+    max_lat: float = Query(ge=-90, le=90),
+    min_lon: float = Query(ge=-180, le=180),
+    max_lon: float = Query(ge=-180, le=180),
+):
+    """Proxy OpenStreetMap for the exposure panel's bounding-box lookup —
+    same rationale as /environment-estimate above.
+    """
+    try:
+        elements = fetch_exposure(min_lat, min_lon, max_lat, max_lon)
+    except (URLError, TimeoutError, OSError, ValueError, KeyError):
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach OpenStreetMap. Try again shortly.",
+        )
+    return ExposureResponse(elements=elements)
 
 
 @app.post("/calculate-zones", response_model=ZoneResponse)
