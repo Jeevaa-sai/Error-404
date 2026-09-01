@@ -1,0 +1,42 @@
+{
+  "thermal_bands": [
+    {
+      "severity": "high",
+      "hazard_type": "thermal",
+      "threshold_label": "37.5 kW/m²",
+      "polygon": [[13.0067, 80.2206], [13.0086, 80.2229], [13.0072, 80.2246], [13.0053, 80.2223], [13.0067, 80.2206]]
+    },
+    {
+      "severity": "medium",
+      "hazard_type": "thermal",
+      "threshold_label": "12.5 kW/m²",
+      "polygon": [[13.0067, 80.2206], [13.0105, 80.2252], [13.0077, 80.2286], [13.0039, 80.2240], [13.0067, 80.2206]]
+    },
+    {
+      "severity": "low",
+      "hazard_type": "thermal",
+      "threshold_label": "4.0 kW/m²",
+      "polygon": [[13.0067, 80.2206], [13.0134, 80.2286], [13.0086, 80.2346], [13.0019, 80.2266], [13.0067, 80.2206]]
+    }
+  ],
+  "overpressure_bands": [
+    {
+      "severity": "high",
+      "hazard_type": "overpressure",
+      "threshold_label": "35 kPa",
+      "polygon": [[13.0067, 80.2206], [13.0092, 80.2236], [13.0075, 80.2258], [13.0050, 80.2229], [13.0067, 80.2206]]
+    },
+    {
+      "severity": "medium",
+      "hazard_type": "overpressure",
+      "threshold_label": "16 kPa",
+      "polygon": [[13.0067, 80.2206], [13.0119, 80.2268], [13.0084, 80.2311], [13.0032, 80.2249], [13.0067, 80.2206]]
+    },
+    {
+      "severity": "low",
+      "hazard_type": "overpressure",
+      "threshold_label": "3 kPa",
+      "polygon": [[13.0067, 80.2206], [13.0185, 80.2347], [13.0113, 80.2434], [12.9995, 80.2293], [13.0067, 80.2206]]
+    }
+  ]
+}
