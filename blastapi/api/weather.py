@@ -5,11 +5,18 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-# OpenWeather is the project's single weather provider. The key is read from
-# the environment (see api/config.py, which loads blastapi/.env) and never
-# leaves the server — the browser reaches OpenWeather through GET /weather
-# rather than calling it directly, so the key is not shipped to clients.
+# Providers are tried in order. OpenWeather is preferred because it reports
+# measured station data, but it needs a key — and a freshly issued key returns
+# 401 until it activates, which can take a couple of hours. Open-Meteo needs no
+# key, so live weather works immediately and OpenWeather takes over on its own
+# once the key is valid.
+#
+# The key is read from the environment (see api/config.py, which loads
+# blastapi/.env) and never leaves the server — the browser reaches these
+# providers through GET /weather rather than calling them directly, so the key
+# is not shipped to clients.
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 REQUEST_TIMEOUT_S = 5
 USER_AGENT = "DER-02-API/1.0"
 
@@ -66,6 +73,48 @@ def fetch_openweather(lat, lon):
     }
 
 
+def fetch_open_meteo(lat, lon):
+    """Forecast-grid conditions. No API key required."""
+    params = urlencode({
+        "latitude": lat,
+        "longitude": lon,
+        "current": "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
+        "wind_speed_unit": "ms",
+    })
+    payload = _get_json(f"{OPEN_METEO_URL}?{params}")
+    current = payload.get("current", {})
+    speed = current.get("wind_speed_10m")
+    direction = current.get("wind_direction_10m")
+    if speed is None or direction is None:
+        return None
+
+    gust = current.get("wind_gusts_10m")
+    return {
+        "source": "open-meteo",
+        "wind_speed_mps": round(float(speed), 1),
+        "wind_direction_deg": float(direction) % 360,
+        "gust_mps": round(float(gust), 1) if gust is not None else None,
+        "timestamp": _iso_to_utc(current.get("time")),
+        "confidence": "live",
+    }
+
+
+def _iso_to_utc(value):
+    """Open-Meteo returns a naive "2026-09-01T17:15". JavaScript's Date reads a
+    naive string as local time, which would skew "last updated" by the viewer's
+    offset, so stamp it as the UTC it actually is.
+    """
+    if not value:
+        return _now_iso()
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return _now_iso()
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
 def _fallback_weather(lat, lon):
     """Deterministic stand-in used when OpenWeather is unavailable.
 
@@ -94,9 +143,12 @@ def get_weather_for_location(lat, lon, use_live_weather=True):
         result["confidence"] = "manual"
         return result
 
-    try:
-        result = fetch_openweather(lat, lon)
-    except (URLError, TimeoutError, OSError, ValueError, KeyError):
-        result = None
+    for provider in (fetch_openweather, fetch_open_meteo):
+        try:
+            result = provider(lat, lon)
+        except (URLError, TimeoutError, OSError, ValueError, KeyError):
+            continue
+        if result:
+            return result
 
-    return result or _fallback_weather(lat, lon)
+    return _fallback_weather(lat, lon)
