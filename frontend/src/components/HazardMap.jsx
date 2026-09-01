@@ -2,12 +2,7 @@ import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents } from "r
 import L from "leaflet";
 import WindIndicator from "./WindIndicator";
 import SeverityLegend from "./SeverityLegend";
-
-const SEVERITY_COLORS = {
-  high: "#d64545",
-  medium: "#e8a33d",
-  low: "#f0d264",
-};
+import { bandStyle, drawOrder } from "../utils/severity";
 
 const FALLBACK_CENTER = [13.0067, 80.2206];
 
@@ -39,11 +34,6 @@ function ClickPicker({ onPick }) {
   return null;
 }
 
-function severityOrderDesc(bands) {
-  const order = { low: 0, medium: 1, high: 2 };
-  return [...bands].sort((a, b) => order[b.severity] - order[a.severity]);
-}
-
 export default function HazardMap({ facility, zones, height = "100%", onPick, assets = [], loading = false }) {
   const hasLocation = Number.isFinite(facility.lat) && Number.isFinite(facility.lon);
   const center = hasLocation ? [facility.lat, facility.lon] : FALLBACK_CENTER;
@@ -65,16 +55,11 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
 
         {onPick && <ClickPicker onPick={onPick} />}
 
-        {severityOrderDesc(thermalBands).map((band, i) => (
+        {drawOrder(thermalBands).map((band) => (
           <Polygon
-            key={`thermal-${i}`}
+            key={`thermal-${band.severity}`}
             positions={band.polygon}
-            pathOptions={{
-              color: SEVERITY_COLORS[band.severity] || "#ff6a13",
-              weight: 2,
-              fillOpacity: 0.22,
-              dashArray: undefined,
-            }}
+            pathOptions={bandStyle(band, "thermal")}
           >
             <Popup>
               Thermal · {band.severity} · {band.threshold_label}
@@ -82,16 +67,11 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
           </Polygon>
         ))}
 
-        {severityOrderDesc(overpressureBands).map((band, i) => (
+        {drawOrder(overpressureBands).map((band) => (
           <Polygon
-            key={`overpressure-${i}`}
+            key={`overpressure-${band.severity}`}
             positions={band.polygon}
-            pathOptions={{
-              color: "#5b8def",
-              weight: 2,
-              fill: false,
-              dashArray: "6,5",
-            }}
+            pathOptions={bandStyle(band, "overpressure")}
           >
             <Popup>
               Overpressure · {band.severity} · {band.threshold_label}
