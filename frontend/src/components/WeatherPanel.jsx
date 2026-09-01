@@ -3,8 +3,7 @@ import { compassPoint, downwindBearing, formatRelativeTime, formatClockTime } fr
 import { LoadingMessage, EmptyMessage, SkeletonLines } from "./StatusMessage";
 
 const SOURCE_LABELS = {
-  openweather: "OpenWeather (live observation)",
-  "open-meteo": "Open-Meteo (live forecast, no key needed)",
+  openweather: "OpenWeather (live station observation)",
   manual: "Manual entry (operator supplied)",
   fallback: "Estimated (no live feed available)",
 };
@@ -114,9 +113,9 @@ export default function WeatherPanel({ weather, loading }) {
 
           {weather.confidence === "fallback" && (
             <p className="text-severity-medium leading-relaxed pt-1">
-              No live weather provider could be reached — these are estimated conditions
-              derived from the coordinates, not a measurement. Check the server's network
-              access, or enter the wind manually.
+              OpenWeather could not be reached — these are estimated conditions derived from
+              the coordinates, not a measurement. Set OPENWEATHER_API_KEY in blastapi/.env
+              and restart the server, or enter the wind manually.
             </p>
           )}
         </div>
