@@ -35,6 +35,30 @@ function ClickPicker({ onPick }) {
   return null;
 }
 
+// Leaflet caches the pixel size of its container at init time and never
+// re-measures it on its own. In a flex layout the container's real height
+// often isn't final until after that first measurement (sidebar content,
+// fonts, or the loading overlay can still shift things), so the map ends up
+// projecting tiles/markers/polygons against a stale size — which is exactly
+// what produces a map that looks cut off with a marker floating outside it.
+// A ResizeObserver keeps it honest any time the container's actual size
+// changes, plus one measurement a frame after mount to catch the initial
+// flex settle.
+function MapResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(container);
+    const raf = requestAnimationFrame(() => map.invalidateSize());
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [map]);
+  return null;
+}
+
 // Pans the map whenever the facility's coordinates change from outside a
 // map click (geolocation, typed lat/lon, a loaded share link) — a plain
 // click already leaves that point in view, so this only recenters when the
@@ -69,6 +93,7 @@ export default function HazardMap({ facility, zones, height = "100%", onPick, as
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        <MapResize />
         {onPick && <ClickPicker onPick={onPick} />}
         {hasLocation && <Recenter lat={facility.lat} lon={facility.lon} />}
 
