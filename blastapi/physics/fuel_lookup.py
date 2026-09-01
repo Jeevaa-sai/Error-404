@@ -37,36 +37,6 @@ FUEL_PROPERTIES = {
         "chi_r": 0.32,
         "mass_burning_rate_kg_m2_s": 0.045,
     },
-    "kerosene": {
-        "density_kg_per_m3": 810.0,
-        "heat_of_combustion_kj_per_kg": 43000.0,
-        "chi_r": 0.35,
-        "mass_burning_rate_kg_m2_s": 0.039,
-    },
-    "crude_oil": {
-        "density_kg_per_m3": 870.0,
-        "heat_of_combustion_kj_per_kg": 42500.0,
-        "chi_r": 0.25,
-        "mass_burning_rate_kg_m2_s": 0.0334,
-    },
-    "ethanol": {
-        "density_kg_per_m3": 789.0,
-        "heat_of_combustion_kj_per_kg": 26800.0,
-        "chi_r": 0.15,
-        "mass_burning_rate_kg_m2_s": 0.017,
-    },
-    "butane": {
-        "density_kg_per_m3": 580.0,
-        "heat_of_combustion_kj_per_kg": 45700.0,
-        "chi_r": 0.30,
-        "mass_burning_rate_kg_m2_s": 0.078,
-    },
-    "lpg": {
-        "density_kg_per_m3": 510.0,
-        "heat_of_combustion_kj_per_kg": 46000.0,
-        "chi_r": 0.29,
-        "mass_burning_rate_kg_m2_s": 0.099,
-    },
 }
 
 def get_fuel_properties(fuel_type):
