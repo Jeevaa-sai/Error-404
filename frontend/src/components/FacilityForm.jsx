@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const FUEL_OPTIONS = [
   { value: "propane", label: "Propane" },
@@ -33,11 +33,42 @@ const inputClass =
   "w-full bg-ink-900 border border-ink-700 rounded-sm px-3 py-2 text-sm text-ink-100 font-mono " +
   "focus:outline-none focus:border-hazard-500 focus:ring-1 focus:ring-hazard-500 transition-colors";
 
-export default function FacilityForm({ label, onSubmit, isLoading, initial }) {
+export default function FacilityForm({ label, onSubmit, isLoading, initial, location, onLocationChange }) {
   const [form, setForm] = useState(initial || DEFAULT_INPUT);
+  const [geoStatus, setGeoStatus] = useState(null); // null | "loading" | error string
+
+  useEffect(() => {
+    if (location) {
+      setForm((f) => ({ ...f, lat: location.lat, lon: location.lon }));
+    }
+  }, [location]);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function updateLocation(field, value) {
+    const next = { ...form, [field]: value };
+    setForm(next);
+    onLocationChange?.(Number(next.lat) || 0, Number(next.lon) || 0);
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setGeoStatus("Geolocation not supported by this browser");
+      return;
+    }
+    setGeoStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setForm((f) => ({ ...f, lat: latitude, lon: longitude }));
+        onLocationChange?.(latitude, longitude);
+        setGeoStatus(null);
+      },
+      (err) => setGeoStatus(err.message || "Unable to get location"),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }
 
   function handleSubmit(e) {
@@ -61,6 +92,20 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial }) {
         </h3>
       )}
 
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-ink-400">Location</span>
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={geoStatus === "loading"}
+          className="text-xs text-hazard-500 hover:text-hazard-400 disabled:opacity-50 font-mono"
+        >
+          {geoStatus === "loading" ? "Locating…" : "📍 Use my location"}
+        </button>
+      </div>
+      {geoStatus && geoStatus !== "loading" && (
+        <p className="text-xs text-severity-high -mt-2">{geoStatus}</p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Latitude">
           <input
@@ -68,7 +113,7 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial }) {
             type="number"
             step="0.0001"
             value={form.lat}
-            onChange={(e) => update("lat", e.target.value)}
+            onChange={(e) => updateLocation("lat", e.target.value)}
             required
           />
         </Field>
@@ -78,11 +123,12 @@ export default function FacilityForm({ label, onSubmit, isLoading, initial }) {
             type="number"
             step="0.0001"
             value={form.lon}
-            onChange={(e) => update("lon", e.target.value)}
+            onChange={(e) => updateLocation("lon", e.target.value)}
             required
           />
         </Field>
       </div>
+      <p className="text-xs text-ink-700 -mt-2">Type coordinates, click the map, or use your location.</p>
 
       <Field label="Tank volume" unit="m³">
         <input

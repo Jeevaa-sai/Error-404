@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Polygon, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import WindIndicator from "./WindIndicator";
 import SeverityLegend from "./SeverityLegend";
@@ -17,12 +17,21 @@ const facilityIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
+function ClickPicker({ onPick }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
 function severityOrderDesc(bands) {
   const order = { low: 0, medium: 1, high: 2 };
   return [...bands].sort((a, b) => order[b.severity] - order[a.severity]);
 }
 
-export default function HazardMap({ facility, zones, height = "100%" }) {
+export default function HazardMap({ facility, zones, height = "100%", onPick }) {
   const center = [facility.lat, facility.lon];
   const thermalBands = zones?.thermal_bands || [];
   const overpressureBands = zones?.overpressure_bands || [];
@@ -39,6 +48,8 @@ export default function HazardMap({ facility, zones, height = "100%" }) {
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {onPick && <ClickPicker onPick={onPick} />}
 
         {severityOrderDesc(thermalBands).map((band, i) => (
           <Polygon
@@ -75,7 +86,7 @@ export default function HazardMap({ facility, zones, height = "100%" }) {
         ))}
 
         <Marker position={center} icon={facilityIcon}>
-          <Popup>{facility.name || "Facility"}</Popup>
+          <Popup>{facility.name || "Facility"}{onPick ? " — click map to move" : ""}</Popup>
         </Marker>
       </MapContainer>
 

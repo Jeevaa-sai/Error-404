@@ -14,6 +14,7 @@ const SITE_B_DEFAULT = {
 };
 
 function ConfigColumn({ label, initial }) {
+  const [location, setLocation] = useState({ lat: initial.lat, lon: initial.lon });
   const [facility, setFacility] = useState(initial);
   const [zones, setZones] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ function ConfigColumn({ label, initial }) {
       const result = await calculateZones(input);
       setZones(result);
       setFacility(input);
+      setLocation({ lat: input.lat, lon: input.lon });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -33,16 +35,29 @@ function ConfigColumn({ label, initial }) {
     }
   }
 
+  const mapFacility = { ...facility, lat: location.lat, lon: location.lon };
+
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-3">
-      <FacilityForm label={label} onSubmit={handleSubmit} isLoading={loading} initial={initial} />
+      <FacilityForm
+        label={label}
+        onSubmit={handleSubmit}
+        isLoading={loading}
+        initial={initial}
+        location={location}
+        onLocationChange={(lat, lon) => setLocation({ lat, lon })}
+      />
       {error && (
         <div className="text-xs text-severity-high bg-severity-high/10 border border-severity-high/40 rounded-sm px-3 py-2">
           {error}
         </div>
       )}
       <div className="h-72">
-        <HazardMap facility={facility} zones={zones} />
+        <HazardMap
+          facility={mapFacility}
+          zones={zones}
+          onPick={(lat, lon) => setLocation({ lat, lon })}
+        />
       </div>
     </div>
   );
