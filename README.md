@@ -1,4 +1,4 @@
-# Threat-Zone Estimator
+#TECHBLAST
 
 Estimates thermal-radiation and blast-overpressure hazard zones around a fuel
 storage facility, explains how each zone radius was derived, and cross-references
