@@ -1,37 +1,10 @@
-import { useState } from "react";
-import { fetchExposure } from "../api/exposureApi";
-import { outermostRing } from "../utils/geo";
+import { CRITICAL_LABELS } from "../api/exposureApi";
 
-const CRITICAL_LABELS = {
-  hospital: "Hospital",
-  clinic: "Clinic",
-  school: "School",
-  kindergarten: "Kindergarten",
-  fire_station: "Fire station",
-  police: "Police station",
-};
-
-export default function ExposurePanel({ zones }) {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const ring = zones ? (outermostRing(zones.thermal_bands) || outermostRing(zones.overpressure_bands)) : null;
-
-  async function checkExposure() {
-    if (!ring) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchExposure(ring);
-      setResult(data);
-    } catch (err) {
-      setError(err.message || "Exposure lookup failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+// Purely presentational — App fetches exposure automatically as soon as
+// zones compute (so this and AssetAlerts always agree on the same result
+// instead of each triggering its own OpenStreetMap lookup), and just hands
+// the outcome down here.
+export default function ExposurePanel({ zones, exposure, loading, error, onRefresh }) {
   if (!zones) return null;
 
   return (
@@ -42,25 +15,27 @@ export default function ExposurePanel({ zones }) {
         </h3>
         <button
           type="button"
-          onClick={checkExposure}
+          onClick={onRefresh}
           disabled={loading}
           className="text-xs text-hazard-500 hover:text-hazard-400 disabled:opacity-50 font-mono"
         >
-          {loading ? "Checking…" : result ? "Refresh" : "Check exposure"}
+          {loading ? "Checking…" : "Refresh"}
         </button>
       </div>
 
+      {loading && !exposure && <p className="text-xs text-ink-400">Scanning OpenStreetMap…</p>}
+
       {error && <p className="text-xs text-severity-high">{error}</p>}
 
-      {result && !error && (
+      {exposure && !error && (
         <div className="text-xs text-ink-100 space-y-1.5">
           <p>
-            <span className="font-mono text-ink-100">{result.buildingCount}</span>{" "}
+            <span className="font-mono text-ink-100">{exposure.buildingCount}</span>{" "}
             <span className="text-ink-400">buildings inside the outer hazard band.</span>
           </p>
-          {result.criticalSites.length > 0 ? (
+          {exposure.criticalSites.length > 0 ? (
             <ul className="space-y-1">
-              {result.criticalSites.map((site, i) => (
+              {exposure.criticalSites.map((site, i) => (
                 <li key={i} className="flex items-center gap-2 text-severity-high">
                   <span className="w-1.5 h-1.5 rounded-full bg-severity-high shrink-0" />
                   {CRITICAL_LABELS[site.type] || site.type}
@@ -78,9 +53,9 @@ export default function ExposurePanel({ zones }) {
         </div>
       )}
 
-      {!result && !error && !loading && (
+      {!exposure && !error && !loading && (
         <p className="text-xs text-ink-400">
-          Cross-reference the hazard zones against OpenStreetMap building and critical-infrastructure data.
+          Cross-referencing the hazard zones against OpenStreetMap building and critical-infrastructure data…
         </p>
       )}
     </div>

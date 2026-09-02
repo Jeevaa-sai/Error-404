@@ -11,8 +11,9 @@ import { ErrorMessage } from "./components/StatusMessage";
 import BackendStatus from "./components/BackendStatus";
 import { DEFAULT_ENVIRONMENT } from "./utils/environment";
 import { calculateZones } from "./api/zonesApi";
+import { fetchExposure, CRITICAL_LABELS } from "./api/exposureApi";
 import { buildShareUrl, facilityFromLocation } from "./utils/share";
-import { pointInPolygon } from "./utils/geo";
+import { pointInPolygon, outermostRing } from "./utils/geo";
 
 const DEFAULT_FACILITY = {
   lat: 13.0067, lon: 80.2206, tank_volume_m3: 50, tank_diameter_m: 12,
@@ -47,6 +48,9 @@ function SingleView() {
   const [assets, setAssets] = useState([]);
   const [pickMode, setPickMode] = useState("location"); // "location" | "asset"
   const [lastInput, setLastInput] = useState(null);
+  const [exposure, setExposure] = useState(null);
+  const [exposureLoading, setExposureLoading] = useState(false);
+  const [exposureError, setExposureError] = useState(null);
 
   useEffect(() => {
     if (sharedFacility) {
@@ -64,10 +68,29 @@ function SingleView() {
       setZones(result);
       setFacility(input);
       setLocation({ lat: input.lat, lon: input.lon });
+      refreshExposure(result);
     } catch (err) {
       setError(err.message || "Could not reach the hazard-zone service.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Runs automatically once zones compute, so "Protected assets" and the
+  // briefing already know about nearby hospitals/schools/emergency services
+  // without the operator having to click a separate "check exposure" step.
+  async function refreshExposure(zonesResult) {
+    const ring = outermostRing(zonesResult?.thermal_bands) || outermostRing(zonesResult?.overpressure_bands);
+    if (!ring) return;
+    setExposureLoading(true);
+    setExposureError(null);
+    try {
+      const result = await fetchExposure(ring);
+      setExposure(result);
+    } catch (err) {
+      setExposureError(err.message || "Could not check OpenStreetMap for nearby critical sites.");
+    } finally {
+      setExposureLoading(false);
     }
   }
 
@@ -94,7 +117,15 @@ function SingleView() {
   }
 
   const mapFacility = { ...facility, lat: location.lat, lon: location.lon };
-  const assetsWithStatus = assets.map((a) => ({ ...a, inHazard: isAssetInHazard(a, zones) }));
+  const manualAssetsWithStatus = assets.map((a) => ({ ...a, inHazard: isAssetInHazard(a, zones) }));
+  const autoAssetsWithStatus = (exposure?.criticalSites || []).map((site, i) => ({
+    id: `auto-${i}`,
+    lat: site.lat,
+    lon: site.lon,
+    label: site.name ? `${CRITICAL_LABELS[site.type] || site.type} — ${site.name}` : (CRITICAL_LABELS[site.type] || site.type),
+    inHazard: isAssetInHazard(site, zones),
+  }));
+  const assetsWithStatus = [...autoAssetsWithStatus, ...manualAssetsWithStatus];
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,6 +143,8 @@ function SingleView() {
               setFacility(EMPTY_FACILITY);
               setLocation({ lat: null, lon: null });
               setLastInput(null);
+              setExposure(null);
+              setExposureError(null);
             }}
           />
           <div className="mt-3">
@@ -156,15 +189,24 @@ function SingleView() {
           shorter panels stranded above dead space. */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
         <AssetAlerts
-          assets={assetsWithStatus}
+          autoAssets={autoAssetsWithStatus}
+          manualAssets={manualAssetsWithStatus}
+          autoLoading={exposureLoading}
+          autoError={exposureError}
           pickMode={pickMode}
           onTogglePickMode={() => setPickMode((m) => (m === "asset" ? "location" : "asset"))}
           onRemove={(id) => setAssets((prev) => prev.filter((a) => a.id !== id))}
           onClear={() => setAssets([])}
         />
         <WeatherPanel weather={zones?.weather} loading={loading} />
-        <ExposurePanel zones={zones} />
-        <BriefingPanel facility={facility} zones={zones} />
+        <ExposurePanel
+          zones={zones}
+          exposure={exposure}
+          loading={exposureLoading}
+          error={exposureError}
+          onRefresh={() => refreshExposure(zones)}
+        />
+        <BriefingPanel facility={facility} zones={zones} exposure={exposure} />
       </div>
 
       <ZoneExplanation zones={zones} loading={loading} />

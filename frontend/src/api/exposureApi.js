@@ -10,6 +10,17 @@ const CRITICAL_TAGS = {
   police: "amenity=police",
 };
 
+// Shared with AssetAlerts/ExposurePanel so an auto-detected site and its
+// manually-added counterpart read the same way everywhere in the UI.
+export const CRITICAL_LABELS = {
+  hospital: "Hospital",
+  clinic: "Clinic",
+  school: "School",
+  kindergarten: "Kindergarten",
+  fire_station: "Fire station",
+  police: "Police station",
+};
+
 // Fetches raw OSM elements in the ring's bounding box via our own backend
 // (GET /exposure), then filters to only those actually inside the polygon
 // (not just the box) — same as before, just proxied so the browser doesn't
