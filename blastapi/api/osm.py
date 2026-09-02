@@ -185,6 +185,44 @@ def _fetch_overpass_counts(lat, lon):
     return counts
 
 
+VEGETATION_AREA_TAGS = {
+    ("natural", "wood"), ("natural", "scrub"),
+    ("landuse", "forest"), ("landuse", "meadow"),
+    ("leisure", "nature_reserve"), ("boundary", "national_park"),
+}
+
+
+def _fetch_inside_vegetation(lat, lon):
+    """Whether the point sits inside a large forest/park/reserve polygon.
+
+    `_fetch_overpass_counts`'s `around:{RADIUS_M}` filter measures distance
+    to a way's boundary LINE, not membership in the area it encloses — a
+    point deep inside a big park (Guindy National Park is ~2.7 km²) can be
+    well over 300m from the park's own edge while still being inside it, so
+    that proximity query misses it entirely and tree_density reads 0 for a
+    facility standing in the middle of a forest. `is_in()` resolves every
+    closed way/relation that actually contains the point, which is the
+    correct test for "am I inside this area" regardless of how large it is.
+    Best-effort: returns False (no boost) on any failure, same as the
+    terrain lookup.
+    """
+    query = f"""
+        [out:json][timeout:25];
+        is_in({lat},{lon});
+        out tags;
+    """.strip()
+    try:
+        data = _run_overpass_query(query)
+    except (URLError, HTTPError, TimeoutError, OSError, ValueError):
+        return False
+
+    for el in data.get("elements", []):
+        tags = el.get("tags", {})
+        if any(tags.get(key) == value for key, value in VEGETATION_AREA_TAGS):
+            return True
+    return False
+
+
 def _fetch_terrain_roughness(lat, lon):
     """Elevation spread across a 300m ring around the site — flat ground
     scores near 0, real relief scores higher. Best-effort: returns None on
@@ -225,14 +263,23 @@ def estimate_environment(lat, lon):
     run concurrently rather than one after another — urllib is blocking, so a
     thread pool is what gets them running at the same time.
     """
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         counts_future = pool.submit(_fetch_overpass_counts, lat, lon)
         terrain_future = pool.submit(_fetch_terrain_roughness, lat, lon)
+        inside_vegetation_future = pool.submit(_fetch_inside_vegetation, lat, lon)
         counts = counts_future.result()
         terrain_roughness = terrain_future.result()
+        inside_vegetation = inside_vegetation_future.result()
+
+    tree_density = _clamp01((counts["tree_nodes"] + counts["forest_ways"] * 5) / 40.0)
+    if inside_vegetation:
+        # Standing inside a forest/park/reserve is itself strong evidence of
+        # heavy tree cover, regardless of how far the nearest mapped edge or
+        # individual tree node happens to be from this exact point.
+        tree_density = max(tree_density, 0.85)
 
     return {
-        "tree_density": _clamp01((counts["tree_nodes"] + counts["forest_ways"] * 5) / 40.0),
+        "tree_density": tree_density,
         # Weighted toward actual parking (the real vehicle signal); distinct
         # streets contribute only a small nudge so a normal, walkable block
         # doesn't read as maximum vehicle density just for having several roads.
