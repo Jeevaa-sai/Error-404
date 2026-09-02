@@ -3,7 +3,9 @@ services:
     name: blastapi
     runtime: docker
     dockerfilePath: ./blastapi/Dockerfile
-    dockerContext: ./blastapi
+    # Repo root, so the Dockerfile can COPY the single top-level
+    # requirements.txt alongside blastapi/api and blastapi/physics.
+    dockerContext: .
     plan: free
     envVars:
       # Set the real value in the Render dashboard, not here. Without it the

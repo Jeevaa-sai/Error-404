@@ -1,11 +1,14 @@
 FROM python:3.12-slim
 
+# Build context is the REPO ROOT (see dockerContext in render.yaml), so that
+# the single top-level requirements.txt is reachable — Docker cannot COPY
+# from outside its build context.
 WORKDIR /app
-COPY api/requirements.txt api/requirements.txt
-RUN pip install --no-cache-dir -r api/requirements.txt
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api api
-COPY physics physics
+COPY blastapi/api api
+COPY blastapi/physics physics
 
 # Render/Railway/Fly inject $PORT; default to 8000 for local docker run.
 ENV PORT=8000

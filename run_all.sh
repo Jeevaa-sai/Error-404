@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 
 command -v python3 >/dev/null || { echo "[X] python3 not found. Install Python 3.10+."; exit 1; }
 python3 -c "import fastapi, uvicorn" 2>/dev/null || {
-  echo "[X] Backend dependencies missing. Run: python3 -m pip install -r blastapi/api/requirements.txt"; exit 1; }
+  echo "[X] Backend dependencies missing. Run: python3 -m pip install -r requirements.txt"; exit 1; }
 [ -d frontend/node_modules ] || { echo "[X] Frontend dependencies missing. Run: cd frontend && npm install"; exit 1; }
 
 LANIP=$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0 2>/dev/null || echo localhost)

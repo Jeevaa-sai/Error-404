@@ -22,7 +22,7 @@ for /f "tokens=*" %%v in ('node --version') do echo [OK] Node %%v
 
 echo.
 echo Installing backend dependencies...
-python -m pip install --quiet --disable-pip-version-check -r "%~dp0blastapi\api\requirements.txt"
+python -m pip install --quiet --disable-pip-version-check -r "%~dp0requirements.txt"
 if errorlevel 1 (
   echo [X] pip install failed.
   goto :fail
