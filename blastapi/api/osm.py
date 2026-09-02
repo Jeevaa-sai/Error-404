@@ -31,10 +31,28 @@ REQUEST_TIMEOUT_S = 20
 # Mirrors are raced in parallel (see _run_overpass_query), so this bounds a
 # single mirror's wait, not the total — worst case is ~this long, not this
 # multiplied by the mirror count.
-MIRROR_TIMEOUT_S = 12
+#
+# The real ceiling here is the FRONTEND's own fetch timeout for these
+# endpoints (25s — see environmentApi.js / exposureApi.js), not Overpass's
+# declared [timeout:N] below. This must stay safely under that frontend
+# limit, with margin for uvicorn dispatch + JSON parsing on both ends —
+# overshoot it and the browser aborts and reports "no response from the
+# backend" while the backend is still legitimately waiting on Overpass,
+# which is a more confusing failure than just giving up on Overpass a
+# little sooner and returning our own clear "could not reach OSM" error.
+MIRROR_TIMEOUT_S = 18
+OVERPASS_QUERY_TIMEOUT_S = 20
 USER_AGENT = "DER-02-API/1.0"
 RADIUS_M = 300
 EARTH_RADIUS_M = 6371000.0
+# Above this, a "list every building" query over a dense city becomes too
+# expensive to run at all (thousands of footprints), even with the raised
+# timeout above — so building enumeration is skipped past this size and only
+# the sparse, cheap critical-infrastructure amenities are still queried.
+MAX_BUILDING_QUERY_KM2 = 100.0
+# Caps how many elements Overpass streams back, independent of the area
+# check above — bounds response size/parse time for anything in between.
+MAX_EXPOSURE_ELEMENTS = 4000
 
 
 def _post_json(url, body, timeout=REQUEST_TIMEOUT_S):
@@ -88,6 +106,13 @@ def _clamp01(x):
     return max(0.0, min(1.0, x))
 
 
+def _bbox_area_km2(min_lat, min_lon, max_lat, max_lon):
+    lat_span_km = (max_lat - min_lat) * 111.32
+    mean_lat = (min_lat + max_lat) / 2.0
+    lon_span_km = (max_lon - min_lon) * 111.32 * math.cos(math.radians(mean_lat))
+    return abs(lat_span_km * lon_span_km)
+
+
 def _point_in_polygon(lat, lon, ring):
     inside = False
     n = len(ring)
@@ -109,14 +134,18 @@ def fetch_exposure(min_lat, min_lon, max_lat, max_lon):
     for the exposure panel's "what's inside the hazard zone" check.
     """
     bbox = f"{min_lat},{min_lon},{max_lat},{max_lon}"
+    area_km2 = _bbox_area_km2(min_lat, min_lon, max_lat, max_lon)
+    building_clause = (
+        f'way["building"]({bbox});' if area_km2 <= MAX_BUILDING_QUERY_KM2 else ""
+    )
     query = f"""
-        [out:json][timeout:25];
+        [out:json][timeout:{OVERPASS_QUERY_TIMEOUT_S}];
         (
-          way["building"]({bbox});
+          {building_clause}
           node["amenity"~"^(hospital|clinic|school|kindergarten|fire_station|police)$"]({bbox});
           way["amenity"~"^(hospital|clinic|school|kindergarten|fire_station|police)$"]({bbox});
         );
-        out center;
+        out center {MAX_EXPOSURE_ELEMENTS};
     """.strip()
 
     data = _run_overpass_query(query)
@@ -144,7 +173,7 @@ def fetch_exposure(min_lat, min_lon, max_lat, max_lon):
 def _fetch_overpass_counts(lat, lon):
     around = f"around:{RADIUS_M},{lat},{lon}"
     query = f"""
-        [out:json][timeout:25];
+        [out:json][timeout:{OVERPASS_QUERY_TIMEOUT_S}];
         (
           way["building"]({around});
           way["natural"="wood"]({around});
@@ -207,7 +236,7 @@ def _fetch_inside_vegetation(lat, lon):
     terrain lookup.
     """
     query = f"""
-        [out:json][timeout:25];
+        [out:json][timeout:{OVERPASS_QUERY_TIMEOUT_S}];
         is_in({lat},{lon});
         out tags;
     """.strip()
