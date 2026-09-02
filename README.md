@@ -1,20 +1,47 @@
-# Error-404 — Threat-Zone Estimator
-
-Hackatronics 2.0 hackathon project. **DER-02: industrial fire & explosion response.**
+# Threat-Zone Estimator
 
 Estimates thermal-radiation and blast-overpressure hazard zones around a fuel
-storage facility, explains why each zone is the size it is, and cross-references
-the footprint against OpenStreetMap for exposed buildings and critical sites.
+storage facility, explains how each zone radius was derived, and cross-references
+the resulting footprint against OpenStreetMap to identify exposed buildings and
+critical infrastructure.
 
-- **Backend** — FastAPI (`blastapi/`), physics in `blastapi/physics/`
-- **Frontend** — React + Vite + Leaflet (`frontend/`)
+Built as a screening-level tool: fast enough to run on scene, and transparent
+enough that every metre of every zone can be traced back to a published
+correlation and a stated assumption.
+
+- **Backend** — FastAPI, physics modules in `blastapi/physics/`
+- **Frontend** — React + Vite + Leaflet
 
 ---
 
-## Quick start
+## Features
 
-Works the same on any machine — Windows, macOS, or Linux. Nothing needs
-configuring for the normal case.
+- **Six graded hazard bands** — three thermal, three overpressure — computed
+  from tank volume, tank diameter, fuel type, and wind, rendered on an
+  interactive map at true scale.
+- **Per-zone explanation** — each band reports its still-air radius, the effect
+  of site conditions on it, and how far the wind stretched it.
+- **Exposure analysis** — buildings, hospitals, schools, and emergency services
+  inside the outer band are counted automatically from OpenStreetMap after each
+  computation. Additional assets can be placed manually.
+- **Two-site comparison** — two facilities computed side by side and diffed
+  row by row, with a warning when one facility falls inside the other's hazard
+  zone.
+- **Live weather** — wind is entered manually or fetched from a provider chain,
+  with the source and confidence of every value labelled.
+- **Shareable scenarios** — the full input set encodes to a URL, so a scenario
+  reopens exactly as computed.
+
+---
+
+## Requirements
+
+- Python 3.10 or newer
+- Node.js 18 or newer
+
+---
+
+## Installation
 
 ```bash
 git clone https://github.com/Jeevaa-sai/Error-404.git
@@ -24,8 +51,7 @@ cd Error-404
 **Windows**
 
 ```
-setup.bat        # once, after cloning
-run_all.bat      # every time
+setup.bat
 ```
 
 **macOS / Linux**
@@ -33,144 +59,171 @@ run_all.bat      # every time
 ```bash
 python3 -m pip install -r requirements.txt
 cd frontend && npm install && cd ..
+```
+
+`setup.bat` verifies both toolchains are present and reports what is missing
+rather than failing partway through.
+
+---
+
+## Usage
+
+Start the backend and frontend together:
+
+**Windows**
+
+```
+run_all.bat
+```
+
+**macOS / Linux**
+
+```bash
 ./run_all.sh
 ```
 
 Then open **http://localhost:5173**.
 
-Requires Python 3.10+ and Node 18+. `setup.bat` checks for both and tells you
-what is missing rather than failing halfway.
+| Service  | Address                     |
+| -------- | --------------------------- |
+| Frontend | http://localhost:5173       |
+| Backend  | http://localhost:8000       |
+| API docs | http://localhost:8000/docs  |
 
----
+To run the two services separately:
 
-## What it does
+```bash
+# backend
+cd blastapi && python -m uvicorn api.main:app --reload
 
-**Compute** — six graded bands (three thermal, three overpressure) from tank
-volume, diameter, fuel type and wind, drawn on the map at their real footprint.
-
-**Explain** — every zone reports its still-air radius, what the site conditions
-did to it, and which way the wind stretched it, in words.
-
-**Cross-reference** — buildings, hospitals, schools and emergency services
-inside the outer band, counted from OpenStreetMap automatically after each
-compute, plus any assets you drop yourself.
-
-**Compare** — two facilities side by side, diffed row by row, with a cascading
-risk warning when one facility sits inside the other's hazard zone.
-
-**Share** — every scenario encodes to a URL, so the same computation reopens
-exactly as computed.
-
----
-
-## The model
-
-| Stage | Formula | Source |
-|---|---|---|
-| Pool fire | `Q̇ = ṁ″ · A · ΔH_c` | Babrauskas, *Fire Technology*, 1983 |
-| Thermal radius | `r = √(χ_r · Q̇ / 4π q)` | Point-source model; SFPE Handbook, NISTIR 6546 |
-| TNT equivalence | `W_TNT = yield · E_stored / 4184` | CCPS, yield factor 0.05 |
-| Blast radius | `Z = (114/ΔP)^(1/1.6)`, `R = Z · W_TNT^(1/3)` | Power-law **fit** to Kingery & Bulmash 1984 (Swisdak 1994), valid 1 < Z < 10 |
-
-**Damage thresholds** — thermal 37.5 / 12.5 / 4.0 kW/m² (API RP 521, TNO Green
-Book); overpressure 35 / 16 / 3 kPa (CCPS 1999, HSE). Cited in
-`blastapi/api/severity_bands.py`.
-
-**Site multiplier** — five inputs, each scaling every radius, multiplied
-together: tree density (+8% max), vehicle density (+12% max), nearby buildings
-(+5% each, count capped at 20), terrain roughness (−7% max, the only negative
-term), occupancy risk (+10% max). Coefficients in `blastapi/api/exposure.py`,
-mirrored in `frontend/src/utils/environment.js` so the live preview matches the
-API.
-
-**Wind** — the zone stops being a circle. At 5 m/s the downwind reach becomes
-1.50× the still-air radius, the sides narrow to 0.93×, and the upwind edge stays
-at 1.00×. The ellipse is shifted downwind so the facility sits near its upwind
-edge rather than its centre.
-
-### Modelling caveats
-
-An honest engineering approximation of flame tilt and plume drift, **not CFD**.
-Flat-earth lat/lon projection (fine at facility scale, not tens of km).
-Point-source thermal model, not a solid-flame view-factor model. Fixed yield
-factor (0.05) and stretch coefficient (0.05) rather than per-scenario fits.
-Exposure counts come from OpenStreetMap buildings, not census data — a lower
-bound, not a headcount.
-
----
-
-## Where the frontend looks for the backend
-
-By default the frontend calls the backend **on the same machine and host that
-served the page**, so cloning and running both locally needs no configuration.
-This also covers opening the app from a phone or another laptop on the same
-Wi-Fi: visiting `http://192.168.1.42:5173` makes API calls to
-`http://192.168.1.42:8000` automatically.
-
-**You only need to configure something if the backend runs on a *different*
-machine than the frontend.** In that case, create `frontend/.env`:
-
-```
-VITE_API_BASE=http://<backend-machine-ip>:8000
+# frontend
+cd frontend && npm run dev
 ```
 
-Find that IP with `ipconfig` (Windows) or `ip addr` (Linux/macOS) **on the
-backend machine**. No trailing slash. Vite reads `.env` at startup, so restart
-`npm run dev` afterwards. `frontend/.env.example` documents the format.
-
-The header shows a **connection indicator** — click it to see which address is
-in use and whether the backend is reachable.
-
 ---
 
-## Live weather (optional)
+## Configuration
 
-Zone shapes use wind speed and direction, which you can always type in by hand.
+### Backend address
 
-The server tries **OpenWeather** (measured station data, needs a key), then
-**Open-Meteo** (no key required), then a deterministic estimate derived from the
-coordinates. Every result is labelled `live`, `manual`, or `fallback` in the
-weather panel, so an estimate is never presented as a measurement.
+By default the frontend calls the backend on the same host that served the
+page, so running both locally requires no configuration. This also covers
+opening the app from another device on the same network — visiting
+`http://192.168.1.42:5173` will call `http://192.168.1.42:8000` automatically.
+
+Configuration is only needed when the backend runs on a **different machine**
+than the frontend. Create `frontend/.env`:
+
+```
+VITE_API_BASE=http://<backend-host>:8000
+```
+
+No trailing slash. Vite reads `.env` at startup, so restart the dev server
+afterwards. See `frontend/.env.example`.
+
+The application header shows a connection indicator; selecting it displays the
+address in use and whether the backend is reachable.
+
+### Weather providers
+
+Wind speed and direction can always be entered by hand. When live weather is
+requested, the server tries providers in order:
+
+1. **OpenWeather** — measured station data, requires an API key
+2. **Open-Meteo** — forecast grid, no key required
+3. **Deterministic estimate** derived from the coordinates
+
+Every result is labelled `live`, `manual`, or `fallback`, so an estimate is
+never presented as a measurement.
 
 To enable OpenWeather:
 
 ```bash
 cd blastapi
-cp .env.example .env      # copy .env.example on Windows
-# then put the key after OPENWEATHER_API_KEY=
+cp .env.example .env
+# set OPENWEATHER_API_KEY
 ```
 
-Restart the backend. `http://localhost:8000/health` reports
-`"live_weather_configured": true`. **`blastapi/.env` is gitignored — never
-commit the key.**
+Restart the backend; `GET /health` will report
+`"live_weather_configured": true`. `blastapi/.env` is ignored by git.
+
+### Network access
+
+Requests to OpenStreetMap, OpenWeather, and elevation services are proxied
+through the backend rather than issued from the browser, so networks that
+block third-party API hosts still function. When OpenStreetMap is unreachable,
+exposure analysis and environment auto-fill degrade with an explicit message
+and the remainder of the application continues to work.
 
 ---
 
-## Running on separate machines
+## API
 
-1. Start the backend bound to all interfaces — `run_all.bat` and `run_all.sh`
-   already pass `--host 0.0.0.0`. The uvicorn default of `127.0.0.1` refuses
-   outside connections.
-2. Allow port 8000 through the firewall. Windows prompts the first time.
-3. Set `VITE_API_BASE` on each frontend machine as above.
-
-CORS is already open to any origin, so no backend change is needed.
-
----
-
-## Verify the backend alone
+| Method | Endpoint                | Description                                        |
+| ------ | ----------------------- | -------------------------------------------------- |
+| `GET`  | `/health`               | Service status and whether a weather key is set     |
+| `GET`  | `/fuels`                | Supported fuel types                                |
+| `GET`  | `/weather`              | Wind conditions for a coordinate                    |
+| `GET`  | `/environment-estimate` | Site characteristics derived from OSM and elevation |
+| `GET`  | `/exposure`             | Buildings and critical sites in a bounding box      |
+| `POST` | `/calculate-zones`      | Hazard bands for a facility                         |
 
 ```bash
-curl http://localhost:8000/health
 curl -X POST http://localhost:8000/calculate-zones \
   -H "Content-Type: application/json" \
   -d '{"lat":13.0067,"lon":80.2206,"tank_volume_m3":50,"tank_diameter_m":12,
        "fuel_type":"propane","wind_speed_mps":5,"wind_direction_deg":45}'
 ```
 
-Or open **http://localhost:8000/docs** for interactive testing.
+`wind_direction_deg` follows the meteorological convention — the direction the
+wind is coming **from**, where 0° is north. Supported fuels: propane, LNG,
+gasoline, diesel, kerosene, crude oil, ethanol, butane, LPG.
 
-## Tests
+Interactive documentation is available at `/docs`.
+
+---
+
+## Methodology
+
+| Stage           | Relationship                                       | Reference                                                             |
+| --------------- | -------------------------------------------------- | --------------------------------------------------------------------- |
+| Pool fire       | `Q̇ = ṁ″ · A · ΔH_c`                                | Babrauskas, *Fire Technology*, 1983                                   |
+| Thermal radius  | `r = √(χ_r · Q̇ / 4π q)`                            | Point-source model; SFPE Handbook, NISTIR 6546                        |
+| TNT equivalence | `W = yield · E_stored / 4184`                       | CCPS; yield factor 0.05                                               |
+| Blast radius    | `Z = (114/ΔP)^(1/1.6)`, `R = Z · W^(1/3)`           | Power-law fit to Kingery & Bulmash (1984), Swisdak (1994); valid 1 < Z < 10 |
+
+**Damage thresholds.** Thermal bands at 37.5, 12.5, and 4.0 kW/m² (API RP 521,
+TNO Green Book). Overpressure bands at 35, 16, and 3 kPa (CCPS 1999, HSE).
+Values and citations are in `blastapi/api/severity_bands.py`.
+
+**Site multiplier.** Five inputs scale every radius and combine multiplicatively:
+tree density (up to +8%), vehicle density (up to +12%), nearby buildings (+5%
+each, count capped at 20), terrain roughness (up to −7%, the only reducing
+term), and occupancy risk (up to +10%). Coefficients are defined in
+`blastapi/api/exposure.py` and mirrored in `frontend/src/utils/environment.js`
+so the interface preview matches the API result.
+
+**Wind.** Zones are elongated downwind rather than circular. At 5 m/s the
+downwind reach becomes 1.50× the still-air radius, crosswind narrows to 0.93×,
+and the upwind edge remains at 1.00×. The ellipse is offset so the facility sits
+near its upwind edge rather than its centre.
+
+### Limitations
+
+- A geometric approximation of flame tilt and plume drift, not a CFD simulation.
+- Point-source thermal model rather than a solid-flame view-factor model.
+- Fixed yield factor (0.05) and stretch coefficient (0.05) rather than values
+  fitted per scenario.
+- Flat-earth projection for latitude and longitude — appropriate at facility
+  scale, not across tens of kilometres.
+- The blast correlation is a power-law fit and is flagged when the scaled
+  distance falls outside its validated range.
+- Exposure counts derive from OpenStreetMap building data, not census figures,
+  and represent a lower bound rather than an occupancy count.
+
+---
+
+## Testing
 
 ```bash
 cd blastapi
@@ -183,28 +236,32 @@ Covers the physics modules, the geometry engine, and the API endpoints.
 
 ## Deployment
 
-`blastapi/Dockerfile`, `render.yaml` and `frontend/netlify.toml` are in the repo.
-The Docker build context is the **repo root** (not `blastapi/`) so the single
-top-level `requirements.txt` is reachable.
+`blastapi/Dockerfile`, `render.yaml`, and `frontend/netlify.toml` are included.
+The Docker build context is the repository root rather than `blastapi/`, so the
+top-level `requirements.txt` is reachable during the build.
 
-## Project layout
+```bash
+docker build -f blastapi/Dockerfile -t threat-zone-api .
+docker run -p 8000:8000 threat-zone-api
+```
+
+---
+
+## Project structure
 
 ```
-requirements.txt   backend Python dependencies (single, top level)
-render.yaml        backend + frontend deploy config
-setup.bat          one-time dependency install (Windows)
-run_all.bat/.sh    start backend + frontend together
+requirements.txt      Backend Python dependencies
+render.yaml           Deployment configuration
+setup.bat             One-time dependency installation (Windows)
+run_all.bat/.sh       Start backend and frontend together
 
-blastapi/          FastAPI service
-  Dockerfile       build context is the repo root
-  api/             endpoints, schemas, weather, geometry, exposure, OSM proxy
-  physics/         TNT equivalence, overpressure, thermal radiation, fuel table
+blastapi/
+  Dockerfile          Build context is the repository root
+  api/                Endpoints, schemas, weather, geometry, exposure, OSM proxy
+  physics/            TNT equivalence, overpressure, thermal radiation, fuel data
+
 frontend/
-  src/api/         backend clients — config.js decides the API address
-  src/components/  map, forms, weather / explanation / comparison panels
-  src/utils/       formatting, geometry, severity colours, briefing text
+  src/api/            Backend clients; config.js resolves the API address
+  src/components/     Map, forms, weather, explanation, and comparison panels
+  src/utils/          Formatting, geometry, severity colours, briefing text
 ```
-
-External calls (OpenStreetMap Overpass, OpenWeather, elevation) are proxied
-through the backend rather than made from the browser, so networks that block
-third-party API hosts still work.
