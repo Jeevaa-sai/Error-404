@@ -13,18 +13,29 @@ from urllib.request import Request, urlopen
 # server we already control sidesteps that class of failure entirely, and
 # matches how /weather already proxies OpenWeather.
 #
-# kumi.systems and private.coffee were dropped after both returned 500
-# repeatedly. overpass.osm.ch was tried and dropped too, but for a worse
-# reason than an error: it answered FAST with a seemingly valid but empty
-# result set for a real, populated area (0 elements vs. 93 from
-# z.overpass-api.de for the identical query) — its regional data replication
-# doesn't cover everywhere. A fast wrong answer defeats the whole point of
-# racing mirrors, so only official overpass-api.de nodes are listed here;
-# they mirror the same complete dataset, just at different endpoints.
+# overpass.osm.ch was tried and dropped for a worse reason than an error: it
+# answered FAST with a seemingly valid but empty result set for a real,
+# populated area (0 elements vs. 93 from z.overpass-api.de for the identical
+# query) — its regional data replication doesn't cover everywhere. A fast
+# wrong answer defeats the whole point of racing mirrors, so it stays out.
+#
+# The overpass-api.de nodes are listed first: they mirror the same complete
+# dataset and are the canonical endpoints. But some networks (observed on an
+# Indian ISP) reset the TLS connection to that domain outright — every
+# overpass-api.de host fails with a connection reset while every other HTTPS
+# host is fine — which surfaced as "Could not reach OpenStreetMap" with no
+# way for the user to act on it. maps.mail.ru and the community mirrors below
+# are independent domains serving the same full planet dataset, so a block on
+# one domain no longer takes the feature down. kumi.systems and
+# private.coffee return 5xx intermittently; that costs nothing here because
+# _run_overpass_query races every mirror and simply ignores the losers.
 OVERPASS_MIRRORS = [
     "https://overpass-api.de/api/interpreter",
     "https://z.overpass-api.de/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 ]
 ELEVATION_URL = "https://api.open-meteo.com/v1/elevation"
 REQUEST_TIMEOUT_S = 20
